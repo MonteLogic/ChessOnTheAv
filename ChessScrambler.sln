@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChessScrambler.Client", "ChessScrambler.Client\ChessScrambler.Client.csproj", "{B0B33AE8-A3C8-4D57-9E6E-F0988AECE2F5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChessScrambler.Server", "ChessScrambler.Server\ChessScrambler.Server.csproj", "{B3F3BA41-4BE2-4AD1-A4CD-203377686EE9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B0B33AE8-A3C8-4D57-9E6E-F0988AECE2F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B0B33AE8-A3C8-4D57-9E6E-F0988AECE2F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B0B33AE8-A3C8-4D57-9E6E-F0988AECE2F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B0B33AE8-A3C8-4D57-9E6E-F0988AECE2F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B3F3BA41-4BE2-4AD1-A4CD-203377686EE9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B3F3BA41-4BE2-4AD1-A4CD-203377686EE9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B3F3BA41-4BE2-4AD1-A4CD-203377686EE9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B3F3BA41-4BE2-4AD1-A4CD-203377686EE9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
