@@ -187,6 +187,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     private void UpdateGameStatus()
     {
+        Console.WriteLine($"[LOG] UpdateGameStatus called - Current player: {_chessBoard.CurrentPlayer}");
         CurrentPlayerText = $"Current Player: {(_chessBoard.CurrentPlayer == PieceColor.White ? "White" : "Black")}";
         
         var moves = _chessBoard.MoveHistory.Select(m => m.GetNotation()).ToList();
@@ -271,12 +272,14 @@ public class ChessBoardViewModel : INotifyPropertyChanged
                     }
                     else
                     {
-                        Console.WriteLine("[LOG] Move failed");
+                        Console.WriteLine("[LOG] Move failed - keeping current player and selection");
+                        // Don't change the current player or clear selection when move fails
                     }
                 }
                 else
                 {
-                    Console.WriteLine("[LOG] Move is not valid");
+                    Console.WriteLine("[LOG] Move is not valid - keeping current player and selection");
+                    // Don't change the current player or clear selection when move is invalid
                 }
             }
         }

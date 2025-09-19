@@ -157,46 +157,81 @@ namespace ChessScrambler.Client.Models
 
         public bool IsValidMove(Move move)
         {
+            Console.WriteLine($"[LOG] IsValidMove called: {move.From.Row},{move.From.Column} -> {move.To.Row},{move.To.Column}");
+            
             if (move.From.Row < 0 || move.From.Row >= 8 || move.From.Column < 0 || move.From.Column >= 8)
+            {
+                Console.WriteLine("[LOG] Invalid move: From position out of bounds");
                 return false;
+            }
             if (move.To.Row < 0 || move.To.Row >= 8 || move.To.Column < 0 || move.To.Column >= 8)
+            {
+                Console.WriteLine("[LOG] Invalid move: To position out of bounds");
                 return false;
+            }
 
             var fromPos = move.From.ToChessDotNetPosition();
             var toPos = move.To.ToChessDotNetPosition();
+            Console.WriteLine($"[LOG] Converted to ChessDotNet positions: {fromPos} -> {toPos}");
             
             var validMoves = _chessGame.GetValidMoves(_chessGame.WhoseTurn);
-            return validMoves.Any(m => m.OriginalPosition.ToString() == fromPos.ToString() && 
+            Console.WriteLine($"[LOG] ChessDotNet valid moves count: {validMoves.Count}");
+            Console.WriteLine($"[LOG] Current player: {_chessGame.WhoseTurn}");
+            
+            var isValid = validMoves.Any(m => m.OriginalPosition.ToString() == fromPos.ToString() && 
                                       m.NewPosition.ToString() == toPos.ToString());
+            Console.WriteLine($"[LOG] Move validation result: {isValid}");
+            
+            return isValid;
         }
 
         public bool MakeMove(Move move)
         {
+            Console.WriteLine($"[LOG] MakeMove called: {move.From.Row},{move.From.Column} -> {move.To.Row},{move.To.Column}");
+            
             if (!IsValidMove(move))
+            {
+                Console.WriteLine("[LOG] MakeMove failed: Move is not valid");
                 return false;
+            }
 
             var fromPos = move.From.ToChessDotNetPosition();
             var toPos = move.To.ToChessDotNetPosition();
+            Console.WriteLine($"[LOG] Making move with ChessDotNet: {fromPos} -> {toPos}");
             
             var validMoves = _chessGame.GetValidMoves(_chessGame.WhoseTurn);
             var chessDotNetMove = validMoves.FirstOrDefault(m => m.OriginalPosition.ToString() == fromPos.ToString() && 
                                                                 m.NewPosition.ToString() == toPos.ToString());
             
             if (chessDotNetMove == null)
+            {
+                Console.WriteLine("[LOG] MakeMove failed: Could not find matching ChessDotNet move");
                 return false;
+            }
 
+            Console.WriteLine($"[LOG] Found ChessDotNet move: {chessDotNetMove}");
+            
             var targetPiece = _chessGame.GetPieceAt(toPos);
             move.IsCapture = targetPiece != null;
+            Console.WriteLine($"[LOG] Target piece: {targetPiece?.ToString() ?? "null"}, IsCapture: {move.IsCapture}");
 
             var moveResult = _chessGame.MakeMove(chessDotNetMove, true);
-            bool success = moveResult == ChessDotNet.MoveType.Move || 
-                          moveResult == ChessDotNet.MoveType.Capture ||
-                          moveResult == ChessDotNet.MoveType.Castling ||
-                          moveResult == ChessDotNet.MoveType.EnPassant;
+            Console.WriteLine($"[LOG] ChessDotNet MakeMove result: {moveResult}");
+            
+            // Check if the move was successful by looking at the move result
+            // ChessDotNet returns a combination of move types, so we check if it contains any valid move type
+            bool success = moveResult.HasFlag(ChessDotNet.MoveType.Move) || 
+                          moveResult.HasFlag(ChessDotNet.MoveType.Capture) ||
+                          moveResult.HasFlag(ChessDotNet.MoveType.Castling) ||
+                          moveResult.HasFlag(ChessDotNet.MoveType.EnPassant);
+            
+            Console.WriteLine($"[LOG] Move success: {success}");
             
             if (success)
             {
                 _moveHistory.Add(move);
+                Console.WriteLine($"[LOG] Move added to history. Total moves: {_moveHistory.Count}");
+                Console.WriteLine($"[LOG] New current player: {_chessGame.WhoseTurn}");
             }
             
             return success;
