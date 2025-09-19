@@ -152,12 +152,19 @@
                 <!-- Move History -->
                 <Border Background="#333333" Padding="10" CornerRadius="5">
                     <StackPanel>
-                        <TextBlock Text="Move History" Foreground="White" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
-                        <ScrollViewer Height="200">
-                            <TextBlock Text="{Binding MoveHistoryText}" 
-                                       Foreground="White" 
-                                       TextWrapping="Wrap"/>
-                        </ScrollViewer>
+                        <TextBlock Text="Move History" Foreground="Black" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+                        <TextBox Text="{Binding MoveHistoryText}"
+                                 Foreground="Black" 
+                                 TextWrapping="Wrap"
+                                 IsReadOnly="True"
+                                 Height="200"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Padding="0"
+                                 GotFocus="MoveHistory_GotFocus"
+                                 LostFocus="MoveHistory_LostFocus"
+                                 KeyDown="MoveHistory_KeyDown"/>
                     </StackPanel>
                 </Border>
 
@@ -165,19 +172,18 @@
                 <Border Background="#333333" Padding="10" CornerRadius="5">
                     <StackPanel>
                         <TextBlock Text="Instructions" Foreground="White" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
-                        <ScrollViewer Height="150">
-                            <TextBlock Foreground="White" TextWrapping="Wrap">
-                                <Run Text="• Click on a piece to select it"/>
-                                <LineBreak/>
-                                <Run Text="• Click on a highlighted square to move"/>
-                                <LineBreak/>
-                                <Run Text="• Practice middlegame tactics and strategy"/>
-                                <LineBreak/>
-                                <Run Text="• Look for tactical opportunities"/>
-                                <LineBreak/>
-                                <Run Text="• Plan your moves carefully"/>
-                            </TextBlock>
-                        </ScrollViewer>
+                        <TextBox IsReadOnly="True"
+                                 Foreground="White" 
+                                 TextWrapping="Wrap"
+                                 Height="150"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Padding="0"
+                                 Text="• Click on a piece to select it&#x0a;• Click on a highlighted square to move&#x0a;• Practice middlegame tactics and strategy&#x0a;• Look for tactical opportunities&#x0a;• Plan your moves carefully"
+                                 GotFocus="Instructions_GotFocus"
+                                 LostFocus="Instructions_LostFocus"
+                                 KeyDown="Instructions_KeyDown"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
