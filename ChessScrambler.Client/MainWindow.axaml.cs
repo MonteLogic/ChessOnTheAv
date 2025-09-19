@@ -39,4 +39,9 @@ public partial class MainWindow : Window
         // TODO: Implement hint system
         // This could show the best move or highlight tactical opportunities
     }
+
+    private void ExportDebug_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel?.ExportDebugState();
+    }
 }

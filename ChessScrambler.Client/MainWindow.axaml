@@ -140,6 +140,11 @@
                                     Foreground="White" 
                                     Padding="10,5"
                                     Click="Hint_Click"/>
+                            <Button Content="Export Debug State" 
+                                    Background="#9C27B0" 
+                                    Foreground="White" 
+                                    Padding="10,5"
+                                    Click="ExportDebug_Click"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

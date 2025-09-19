@@ -151,6 +151,24 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         UpdateGameStatus();
     }
 
+    public void ExportDebugState()
+    {
+        try
+        {
+            var debugState = _chessBoard.ExportDebugState();
+            var fileName = $"chess_debug_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+            var filePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
+            
+            System.IO.File.WriteAllText(filePath, debugState);
+            
+            GameStatusText = $"Debug state exported to: {fileName}";
+        }
+        catch (Exception ex)
+        {
+            GameStatusText = $"Error exporting debug state: {ex.Message}";
+        }
+    }
+
     private void UpdateBoard()
     {
         for (int row = 0; row < 8; row++)
@@ -184,27 +202,44 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     public void OnSquareClicked(SquareViewModel square)
     {
-        if (IsGameOver) return;
+        Console.WriteLine($"[LOG] Square clicked: Row={square.Row}, Col={square.Column}, Piece={square.Piece?.ToString() ?? "Empty"}");
+        Console.WriteLine($"[LOG] Current player: {_chessBoard.CurrentPlayer}");
+        Console.WriteLine($"[LOG] Game over: {IsGameOver}");
+        Console.WriteLine($"[LOG] Selected square: {SelectedSquare?.Row},{SelectedSquare?.Column ?? -1}");
+        
+        if (IsGameOver) 
+        {
+            Console.WriteLine("[LOG] Game is over, ignoring click");
+            return;
+        }
 
         if (SelectedSquare == null)
         {
+            Console.WriteLine("[LOG] No piece selected, trying to select piece");
             // Select a piece
             if (square.Piece != null && square.Piece.Color == _chessBoard.CurrentPlayer)
             {
+                Console.WriteLine($"[LOG] Selecting piece: {square.Piece.Type} at {square.Row},{square.Column}");
                 SelectedSquare = square;
                 HighlightValidMoves(square);
+            }
+            else
+            {
+                Console.WriteLine($"[LOG] Cannot select piece: Piece={square.Piece?.ToString() ?? "null"}, CurrentPlayer={_chessBoard.CurrentPlayer}");
             }
         }
         else
         {
             if (square == SelectedSquare)
             {
+                Console.WriteLine("[LOG] Deselecting piece");
                 // Deselect
                 SelectedSquare = null;
                 ClearHighlights();
             }
             else if (square.Piece != null && square.Piece.Color == _chessBoard.CurrentPlayer)
             {
+                Console.WriteLine($"[LOG] Selecting different piece: {square.Piece.Type} at {square.Row},{square.Column}");
                 // Select different piece
                 SelectedSquare = square;
                 ClearHighlights();
@@ -212,14 +247,36 @@ public class ChessBoardViewModel : INotifyPropertyChanged
             }
             else
             {
+                Console.WriteLine($"[LOG] Attempting move from {SelectedSquare.Row},{SelectedSquare.Column} to {square.Row},{square.Column}");
                 // Try to make a move
                 var move = new Move(new Position(SelectedSquare.Row, SelectedSquare.Column), new Position(square.Row, square.Column));
-                if (_chessBoard.MakeMove(move))
+                Console.WriteLine($"[LOG] Move object created: {move.GetNotation()}");
+                
+                var isValid = _chessBoard.IsValidMove(move);
+                Console.WriteLine($"[LOG] Move is valid: {isValid}");
+                
+                if (isValid)
                 {
-                    UpdateBoard();
-                    UpdateGameStatus();
-                    SelectedSquare = null;
-                    ClearHighlights();
+                    var moveResult = _chessBoard.MakeMove(move);
+                    Console.WriteLine($"[LOG] Move result: {moveResult}");
+                    
+                    if (moveResult)
+                    {
+                        Console.WriteLine("[LOG] Move successful, updating board and game status");
+                        UpdateBoard();
+                        UpdateGameStatus();
+                        SelectedSquare = null;
+                        ClearHighlights();
+                        Console.WriteLine($"[LOG] New current player: {_chessBoard.CurrentPlayer}");
+                    }
+                    else
+                    {
+                        Console.WriteLine("[LOG] Move failed");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("[LOG] Move is not valid");
                 }
             }
         }
@@ -228,7 +285,9 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     private void HighlightValidMoves(SquareViewModel fromSquare)
     {
         var fromPosition = new Position(fromSquare.Row, fromSquare.Column);
+        Console.WriteLine($"[LOG] Getting valid moves for piece at {fromPosition.Row},{fromPosition.Column}");
         var validMoves = _chessBoard.GetValidMoves(fromPosition);
+        Console.WriteLine($"[LOG] Found {validMoves.Count} valid moves");
         
         foreach (var square in Squares)
         {
