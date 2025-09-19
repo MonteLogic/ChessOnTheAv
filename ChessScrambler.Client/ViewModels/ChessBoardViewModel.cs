@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -191,7 +192,25 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         CurrentPlayerText = $"Current Player: {(_chessBoard.CurrentPlayer == PieceColor.White ? "White" : "Black")}";
         
         var moves = _chessBoard.MoveHistory.Select(m => m.GetNotation()).ToList();
-        MoveHistoryText = $"Moves: {string.Join(", ", moves)}";
+        
+        // Format moves in a more readable way with move numbers
+        var formattedMoves = new List<string>();
+        for (int i = 0; i < moves.Count; i++)
+        {
+            if (i % 2 == 0)
+            {
+                // White move - add move number
+                var moveNumber = (i / 2) + 1;
+                formattedMoves.Add($"{moveNumber}. {moves[i]}");
+            }
+            else
+            {
+                // Black move - just add the move
+                formattedMoves.Add(moves[i]);
+            }
+        }
+        
+        MoveHistoryText = string.Join(" ", formattedMoves);
         
         IsGameOver = _chessBoard.IsGameOver;
         GameStatusText = IsGameOver ? 

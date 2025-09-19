@@ -54,6 +54,7 @@ namespace ChessScrambler.Client.Models
     {
         public Position From { get; set; }
         public Position To { get; set; }
+        public PieceType PieceType { get; set; }
         public PieceType? PromotionPiece { get; set; }
         public bool IsCapture { get; set; }
         public bool IsCastling { get; set; }
@@ -72,12 +73,14 @@ namespace ChessScrambler.Client.Models
                 return To.Column == 6 ? "O-O" : "O-O-O";
             }
 
-            var piece = From.GetAlgebraicNotation();
+            // For proper chess notation, we need to know the piece type
+            // This will be set by the ChessBoard when creating the move
+            var pieceNotation = GetPieceNotation(PieceType);
             var target = To.GetAlgebraicNotation();
             var capture = IsCapture ? "x" : "";
             var promotion = PromotionPiece.HasValue ? $"={GetPieceNotation(PromotionPiece.Value)}" : "";
 
-            return $"{piece}{capture}{target}{promotion}";
+            return $"{pieceNotation}{capture}{target}{promotion}";
         }
 
         private static string GetPieceNotation(PieceType pieceType)
@@ -211,6 +214,10 @@ namespace ChessScrambler.Client.Models
 
             Console.WriteLine($"[LOG] Found ChessDotNet move: {chessDotNetMove}");
             
+            // Get piece type before making the move
+            var fromPiece = _chessGame.GetPieceAt(fromPos);
+            move.PieceType = ConvertPieceType(fromPiece);
+            
             var targetPiece = _chessGame.GetPieceAt(toPos);
             move.IsCapture = targetPiece != null;
             Console.WriteLine($"[LOG] Target piece: {targetPiece?.ToString() ?? "null"}, IsCapture: {move.IsCapture}");
@@ -247,13 +254,20 @@ namespace ChessScrambler.Client.Models
             var moves = new List<Move>();
             var fromPos = from.ToChessDotNetPosition();
             
+            // Get the piece at the from position to determine piece type
+            var piece = _chessGame.GetPieceAt(fromPos);
+            var pieceType = ConvertPieceType(piece);
+            
             var validMoves = _chessGame.GetValidMoves(_chessGame.WhoseTurn);
             var movesFromPosition = validMoves.Where(m => m.OriginalPosition.ToString() == fromPos.ToString());
             
             foreach (var chessMove in movesFromPosition)
             {
                 var toPosition = Position.FromChessDotNetPosition(chessMove.NewPosition);
-                var move = new Move(from, toPosition);
+                var move = new Move(from, toPosition)
+                {
+                    PieceType = pieceType
+                };
                 moves.Add(move);
             }
             
