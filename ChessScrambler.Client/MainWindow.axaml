@@ -3,11 +3,16 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:ChessScrambler.Client.ViewModels"
+        xmlns:converters="using:ChessScrambler.Client.Converters"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
         x:Class="ChessScrambler.Client.MainWindow"
         x:DataType="vm:ChessBoardViewModel"
         Title="Chess Middlegame Practicer"
         MinWidth="1000" MinHeight="700">
+    
+    <Window.Resources>
+        <converters:SquareColorConverter x:Key="SquareColorConverter"/>
+    </Window.Resources>
     
     <Design.DataContext>
         <vm:ChessBoardViewModel/>
@@ -54,7 +59,15 @@
                                         BorderBrush="Black" BorderThickness="1"
                                         PointerPressed="Square_PointerPressed">
                                     <Border.Background>
-                                        <SolidColorBrush Color="#F0D9B5"/>
+                                        <SolidColorBrush>
+                                            <SolidColorBrush.Color>
+                                                <MultiBinding Converter="{StaticResource SquareColorConverter}">
+                                                    <Binding Path="IsLightSquare"/>
+                                                    <Binding Path="IsSelected"/>
+                                                    <Binding Path="IsHighlighted"/>
+                                                </MultiBinding>
+                                            </SolidColorBrush.Color>
+                                        </SolidColorBrush>
                                     </Border.Background>
                                     <TextBlock Text="{Binding Piece.Symbol}" 
                                                FontSize="32" 

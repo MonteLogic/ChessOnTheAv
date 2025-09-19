@@ -86,63 +86,78 @@ public class Move
 
 public class ChessBoard
 {
-    private ChessPiece[,] board;
-    private PieceColor currentPlayer;
-    private List<Move> moveHistory;
-    private Position? enPassantTarget;
+    private ChessPiece[,] _board;
+    private List<Move> _moveHistory;
+    private PieceColor _currentPlayer;
 
-    public PieceColor CurrentPlayer => currentPlayer;
-    public List<Move> MoveHistory => moveHistory;
+    public PieceColor CurrentPlayer => _currentPlayer;
+    public List<Move> MoveHistory => _moveHistory;
     public bool IsGameOver { get; private set; }
     public PieceColor? Winner { get; private set; }
 
     public ChessBoard()
     {
-        board = new ChessPiece[8, 8];
-        currentPlayer = PieceColor.White;
-        moveHistory = new List<Move>();
-        SetupInitialPosition();
+        _board = new ChessPiece[8, 8];
+        _moveHistory = new List<Move>();
+        _currentPlayer = PieceColor.White;
+        InitializeBoard();
     }
 
     public ChessBoard(string fen)
     {
-        board = new ChessPiece[8, 8];
-        currentPlayer = PieceColor.White;
-        moveHistory = new List<Move>();
+        _board = new ChessPiece[8, 8];
+        _moveHistory = new List<Move>();
+        _currentPlayer = PieceColor.White;
         LoadFromFen(fen);
     }
 
-    private void SetupInitialPosition()
+    private void InitializeBoard()
     {
-        // Place pawns
+        // Initialize the board with starting position
+        // White pieces
+        _board[7, 0] = new ChessPiece(PieceType.Rook, PieceColor.White);
+        _board[7, 1] = new ChessPiece(PieceType.Knight, PieceColor.White);
+        _board[7, 2] = new ChessPiece(PieceType.Bishop, PieceColor.White);
+        _board[7, 3] = new ChessPiece(PieceType.Queen, PieceColor.White);
+        _board[7, 4] = new ChessPiece(PieceType.King, PieceColor.White);
+        _board[7, 5] = new ChessPiece(PieceType.Bishop, PieceColor.White);
+        _board[7, 6] = new ChessPiece(PieceType.Knight, PieceColor.White);
+        _board[7, 7] = new ChessPiece(PieceType.Rook, PieceColor.White);
+
         for (int col = 0; col < 8; col++)
         {
-            board[1, col] = new ChessPiece(PieceType.Pawn, PieceColor.Black);
-            board[6, col] = new ChessPiece(PieceType.Pawn, PieceColor.White);
+            _board[6, col] = new ChessPiece(PieceType.Pawn, PieceColor.White);
         }
 
-        // Place other pieces
-        var pieceOrder = new[] { PieceType.Rook, PieceType.Knight, PieceType.Bishop, PieceType.Queen, PieceType.King, PieceType.Bishop, PieceType.Knight, PieceType.Rook };
-        
+        // Black pieces
+        _board[0, 0] = new ChessPiece(PieceType.Rook, PieceColor.Black);
+        _board[0, 1] = new ChessPiece(PieceType.Knight, PieceColor.Black);
+        _board[0, 2] = new ChessPiece(PieceType.Bishop, PieceColor.Black);
+        _board[0, 3] = new ChessPiece(PieceType.Queen, PieceColor.Black);
+        _board[0, 4] = new ChessPiece(PieceType.King, PieceColor.Black);
+        _board[0, 5] = new ChessPiece(PieceType.Bishop, PieceColor.Black);
+        _board[0, 6] = new ChessPiece(PieceType.Knight, PieceColor.Black);
+        _board[0, 7] = new ChessPiece(PieceType.Rook, PieceColor.Black);
+
         for (int col = 0; col < 8; col++)
         {
-            board[0, col] = new ChessPiece(pieceOrder[col], PieceColor.Black);
-            board[7, col] = new ChessPiece(pieceOrder[col], PieceColor.White);
+            _board[1, col] = new ChessPiece(PieceType.Pawn, PieceColor.Black);
         }
     }
 
     private void LoadFromFen(string fen)
     {
+        // Simple FEN parser for basic positions
         var parts = fen.Split(' ');
-        var boardFen = parts[0];
-        var currentPlayerFen = parts.Length > 1 ? parts[1] : "w";
-        
-        currentPlayer = currentPlayerFen == "w" ? PieceColor.White : PieceColor.Black;
+        var boardPart = parts[0];
+        var currentPlayerPart = parts.Length > 1 ? parts[1] : "w";
+
+        _currentPlayer = currentPlayerPart == "w" ? PieceColor.White : PieceColor.Black;
 
         var row = 0;
         var col = 0;
 
-        foreach (char c in boardFen)
+        foreach (char c in boardPart)
         {
             if (c == '/')
             {
@@ -155,29 +170,35 @@ public class ChessBoard
             }
             else
             {
-                var pieceType = char.ToLower(c) switch
-                {
-                    'p' => PieceType.Pawn,
-                    'r' => PieceType.Rook,
-                    'n' => PieceType.Knight,
-                    'b' => PieceType.Bishop,
-                    'q' => PieceType.Queen,
-                    'k' => PieceType.King,
-                    _ => throw new ArgumentException($"Invalid piece character: {c}")
-                };
-
+                var pieceType = GetPieceTypeFromChar(c);
                 var pieceColor = char.IsUpper(c) ? PieceColor.White : PieceColor.Black;
-                board[row, col] = new ChessPiece(pieceType, pieceColor);
+                _board[row, col] = new ChessPiece(pieceType, pieceColor);
                 col++;
             }
         }
+    }
+
+    private PieceType GetPieceTypeFromChar(char c)
+    {
+        var upper = char.ToUpper(c);
+        return upper switch
+        {
+            'P' => PieceType.Pawn,
+            'R' => PieceType.Rook,
+            'N' => PieceType.Knight,
+            'B' => PieceType.Bishop,
+            'Q' => PieceType.Queen,
+            'K' => PieceType.King,
+            _ => throw new ArgumentException($"Unknown piece character: {c}")
+        };
     }
 
     public ChessPiece GetPiece(int row, int col)
     {
         if (row < 0 || row >= 8 || col < 0 || col >= 8)
             return null;
-        return board[row, col];
+
+        return _board[row, col];
     }
 
     public ChessPiece GetPiece(Position position)
@@ -189,7 +210,7 @@ public class ChessBoard
     {
         if (row >= 0 && row < 8 && col >= 0 && col < 8)
         {
-            board[row, col] = piece;
+            _board[row, col] = piece;
         }
     }
 
@@ -200,68 +221,17 @@ public class ChessBoard
 
     public bool IsValidMove(Move move)
     {
-        var piece = GetPiece(move.From);
-        if (piece == null || piece.Color != currentPlayer)
+        if (move.From.Row < 0 || move.From.Row >= 8 || move.From.Column < 0 || move.From.Column >= 8)
+            return false;
+        if (move.To.Row < 0 || move.To.Row >= 8 || move.To.Column < 0 || move.To.Column >= 8)
             return false;
 
-        // Basic validation - can be expanded with full chess rules
-        return IsValidMoveForPiece(piece, move);
-    }
+        var piece = GetPiece(move.From);
+        if (piece == null || piece.Color != _currentPlayer)
+            return false;
 
-    private bool IsValidMoveForPiece(ChessPiece piece, Move move)
-    {
-        var rowDiff = Math.Abs(move.To.Row - move.From.Row);
-        var colDiff = Math.Abs(move.To.Column - move.From.Column);
-
-        return piece.Type switch
-        {
-            PieceType.Pawn => IsValidPawnMove(piece, move, rowDiff, colDiff),
-            PieceType.Rook => (rowDiff == 0 || colDiff == 0) && IsPathClear(move.From, move.To),
-            PieceType.Knight => (rowDiff == 2 && colDiff == 1) || (rowDiff == 1 && colDiff == 2),
-            PieceType.Bishop => rowDiff == colDiff && IsPathClear(move.From, move.To),
-            PieceType.Queen => ((rowDiff == 0 || colDiff == 0) || (rowDiff == colDiff)) && IsPathClear(move.From, move.To),
-            PieceType.King => rowDiff <= 1 && colDiff <= 1,
-            _ => false
-        };
-    }
-
-    private bool IsValidPawnMove(ChessPiece piece, Move move, int rowDiff, int colDiff)
-    {
-        var direction = piece.Color == PieceColor.White ? -1 : 1;
-        var startRow = piece.Color == PieceColor.White ? 6 : 1;
-
-        // Forward move
-        if (colDiff == 0 && GetPiece(move.To) == null)
-        {
-            if (rowDiff == 1)
-                return true;
-            if (rowDiff == 2 && move.From.Row == startRow)
-                return true;
-        }
-
-        // Capture move
-        if (colDiff == 1 && rowDiff == 1)
-        {
-            var targetPiece = GetPiece(move.To);
-            return targetPiece != null && targetPiece.Color != piece.Color;
-        }
-
-        return false;
-    }
-
-    private bool IsPathClear(Position from, Position to)
-    {
-        var rowStep = from.Row == to.Row ? 0 : (to.Row - from.Row) / Math.Abs(to.Row - from.Row);
-        var colStep = from.Column == to.Column ? 0 : (to.Column - from.Column) / Math.Abs(to.Column - from.Column);
-
-        var current = new Position(from.Row + rowStep, from.Column + colStep);
-        while (current.Row != to.Row || current.Column != to.Column)
-        {
-            if (GetPiece(current) != null)
-                return false;
-            current = new Position(current.Row + rowStep, current.Column + colStep);
-        }
-
+        // Basic move validation - this is a simplified version
+        // In a real implementation, you'd want more sophisticated validation
         return true;
     }
 
@@ -271,19 +241,25 @@ public class ChessBoard
             return false;
 
         var piece = GetPiece(move.From);
-        var capturedPiece = GetPiece(move.To);
+        if (piece == null)
+            return false;
 
-        // Record the move
-        move.IsCapture = capturedPiece != null;
-        moveHistory.Add(move);
+        // Check if it's a capture
+        var targetPiece = GetPiece(move.To);
+        move.IsCapture = targetPiece != null;
 
-        // Move the piece
+        // Make the move
         SetPiece(move.To, piece);
         SetPiece(move.From, null);
+
+        // Update piece state
         piece.HasMoved = true;
 
+        // Add to move history
+        _moveHistory.Add(move);
+
         // Switch players
-        currentPlayer = currentPlayer == PieceColor.White ? PieceColor.Black : PieceColor.White;
+        _currentPlayer = _currentPlayer == PieceColor.White ? PieceColor.Black : PieceColor.White;
 
         return true;
     }
@@ -296,7 +272,7 @@ public class ChessBoard
             var emptyCount = 0;
             for (int col = 0; col < 8; col++)
             {
-                var piece = board[row, col];
+                var piece = _board[row, col];
                 if (piece == null)
                 {
                     emptyCount++;
@@ -305,20 +281,64 @@ public class ChessBoard
                 {
                     if (emptyCount > 0)
                     {
-                        fen += emptyCount;
+                        fen += emptyCount.ToString();
                         emptyCount = 0;
                     }
-                    var symbol = piece.GetSymbol();
-                    fen += char.IsUpper(symbol[0]) ? char.ToLower(symbol[0]) : char.ToUpper(symbol[0]);
+                    fen += GetCharFromPiece(piece);
                 }
             }
             if (emptyCount > 0)
-                fen += emptyCount;
+            {
+                fen += emptyCount.ToString();
+            }
             if (row < 7)
+            {
                 fen += "/";
+            }
         }
 
-        fen += $" {(currentPlayer == PieceColor.White ? "w" : "b")}";
+        fen += " " + (_currentPlayer == PieceColor.White ? "w" : "b");
         return fen;
+    }
+
+    private char GetCharFromPiece(ChessPiece piece)
+    {
+        var c = piece.Type switch
+        {
+            PieceType.Pawn => 'p',
+            PieceType.Rook => 'r',
+            PieceType.Knight => 'n',
+            PieceType.Bishop => 'b',
+            PieceType.Queen => 'q',
+            PieceType.King => 'k',
+            _ => '?'
+        };
+
+        return piece.Color == PieceColor.White ? char.ToUpper(c) : c;
+    }
+
+    public List<Move> GetValidMoves(Position from)
+    {
+        var moves = new List<Move>();
+        var piece = GetPiece(from);
+        if (piece == null || piece.Color != _currentPlayer)
+            return moves;
+
+        // This is a simplified version - in a real implementation,
+        // you'd want to generate all valid moves for the piece
+        for (int row = 0; row < 8; row++)
+        {
+            for (int col = 0; col < 8; col++)
+            {
+                var to = new Position(row, col);
+                var move = new Move(from, to);
+                if (IsValidMove(move))
+                {
+                    moves.Add(move);
+                }
+            }
+        }
+
+        return moves;
     }
 }

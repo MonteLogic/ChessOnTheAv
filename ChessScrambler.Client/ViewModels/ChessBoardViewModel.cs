@@ -175,7 +175,11 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         MoveHistoryText = $"Moves: {string.Join(", ", moves)}";
         
         IsGameOver = _chessBoard.IsGameOver;
-        GameStatusText = IsGameOver ? $"Game Over - {(_chessBoard.Winner == PieceColor.White ? "White" : "Black")} Wins!" : "Game in Progress";
+        GameStatusText = IsGameOver ? 
+            (_chessBoard.Winner.HasValue ? 
+                $"Game Over - {(_chessBoard.Winner == PieceColor.White ? "White" : "Black")} Wins!" : 
+                "Game Over - Draw!") : 
+            "Game in Progress";
     }
 
     public void OnSquareClicked(SquareViewModel square)
@@ -223,18 +227,13 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     private void HighlightValidMoves(SquareViewModel fromSquare)
     {
-        // This is a simplified version - in a real implementation, you'd calculate all valid moves
-        for (int row = 0; row < 8; row++)
+        var fromPosition = new Position(fromSquare.Row, fromSquare.Column);
+        var validMoves = _chessBoard.GetValidMoves(fromPosition);
+        
+        foreach (var square in Squares)
         {
-            for (int col = 0; col < 8; col++)
-            {
-                var square = Squares.FirstOrDefault(s => s.Row == row && s.Column == col);
-                if (square != null)
-                {
-                var move = new Move(new Position(fromSquare.Row, fromSquare.Column), new Position(row, col));
-                square.IsHighlighted = _chessBoard.IsValidMove(move);
-                }
-            }
+            var move = new Move(fromPosition, new Position(square.Row, square.Column));
+            square.IsHighlighted = validMoves.Any(m => m.From.Equals(move.From) && m.To.Equals(move.To));
         }
     }
 
