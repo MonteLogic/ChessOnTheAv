@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using ChessScrambler.Client.Models;
 
 namespace ChessScrambler.Client.ViewModels;
@@ -67,6 +68,9 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     private string _moveHistoryText;
     private bool _isGameOver;
     private string _gameStatusText;
+    private string _whitePlayerText;
+    private string _blackPlayerText;
+    private List<string> _currentGameMoves;
     private bool _showGameEndPopup;
     private string _gameEndMessage;
     private string _gameIdText;
@@ -74,6 +78,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     private bool _canGoForward;
     private string _moveNavigationText;
     private string _gamesBankStatus;
+    private string _currentFenPosition;
 
     public ObservableCollection<SquareViewModel> Squares { get; } = new ObservableCollection<SquareViewModel>();
 
@@ -115,6 +120,18 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     {
         get => _gameStatusText;
         set => SetProperty(ref _gameStatusText, value);
+    }
+
+    public string WhitePlayerText
+    {
+        get => _whitePlayerText;
+        set => SetProperty(ref _whitePlayerText, value);
+    }
+
+    public string BlackPlayerText
+    {
+        get => _blackPlayerText;
+        set => SetProperty(ref _blackPlayerText, value);
     }
 
     public bool ShowGameEndPopup
@@ -159,8 +176,17 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         set => SetProperty(ref _gamesBankStatus, value);
     }
 
+    public string CurrentFenPosition
+    {
+        get => _currentFenPosition;
+        set => SetProperty(ref _currentFenPosition, value);
+    }
+
     public ChessBoardViewModel()
     {
+        _whitePlayerText = "White: COTA Player 1";
+        _blackPlayerText = "Black: COTA Player 2";
+        _currentGameMoves = new List<string>();
         InitializeBoard();
         LoadSampleGames();
         LoadMiddlegamePosition();
@@ -248,7 +274,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         UpdateGameStatus();
     }
 
-    public void LoadNewPosition()
+    public async Task LoadNewPosition()
     {
         if (Program.EnableGameLogging || Program.EnableFullLogging)
         {
@@ -275,7 +301,8 @@ public class ChessBoardViewModel : INotifyPropertyChanged
                     Console.WriteLine($"[GAME] Game has {importedGame.Moves.Count} moves");
                 }
                 
-                var fen = importedGame.GetMiddlegamePositionFen();
+                // Run the heavy move replay operation on a background thread
+                var fen = await Task.Run(() => importedGame.GetMiddlegamePositionFen());
                 if (Program.EnableGameLogging)
                 {
                     Console.WriteLine($"[GAME] Generated FEN: {fen}");
@@ -283,14 +310,20 @@ public class ChessBoardViewModel : INotifyPropertyChanged
                 
                 _chessBoard = new ChessBoard(fen);
                 
-                   // Update game info to show it's from an imported game
-                   GameIdText = $"Game: {importedGame.GetDisplayName()}";
-                   
-                   if (Program.EnableGameLogging || Program.EnableFullLogging)
-                   {
-                       Console.WriteLine($"[GAME] Successfully loaded imported game position");
-                       Console.WriteLine($"[GAME] Current Game ID: {GameIdText}");
-                   }
+                // Update game info to show it's from an imported game
+                GameIdText = $"Game: {importedGame.GetDisplayName()}";
+                WhitePlayerText = $"White: {importedGame.WhitePlayer}";
+                BlackPlayerText = $"Black: {importedGame.BlackPlayer}";
+                
+                // Store the current game's moves for move history
+                _currentGameMoves = importedGame.Moves;
+                UpdateMoveHistory();
+                
+                if (Program.EnableGameLogging || Program.EnableFullLogging)
+                {
+                    Console.WriteLine($"[GAME] Successfully loaded imported game position");
+                    Console.WriteLine($"[GAME] Current Game ID: {GameIdText}");
+                }
             }
             else
             {
@@ -309,6 +342,10 @@ public class ChessBoardViewModel : INotifyPropertyChanged
                 
                    _chessBoard = new ChessBoard(position.Fen);
                    GameIdText = $"Position: {position.Name}";
+                   WhitePlayerText = "White: COTA Player 1";
+                   BlackPlayerText = "Black: COTA Player 2";
+                   _currentGameMoves = new List<string>();
+                   UpdateMoveHistory();
                    
                    if (Program.EnableGameLogging || Program.EnableFullLogging)
                    {
@@ -444,6 +481,66 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         UpdateGamesBankStatus();
     }
 
+    public string GetCurrentGamePgn()
+    {
+        if (_chessBoard == null) return "";
+
+        var pgn = new System.Text.StringBuilder();
+        
+        // Add PGN headers
+        pgn.AppendLine("[Event \"ChessScrambler Game\"]");
+        pgn.AppendLine($"[Site \"ChessScrambler\"]");
+        pgn.AppendLine($"[Date \"{DateTime.Now:yyyy.MM.dd}\"]");
+        pgn.AppendLine("[Round \"1\"]");
+        pgn.AppendLine("[White \"Player\"]");
+        pgn.AppendLine("[Black \"Player\"]");
+        pgn.AppendLine($"[Result \"{_chessBoard.Game.GameResult}\"]");
+        pgn.AppendLine($"[FEN \"{_chessBoard.Game.InitialFen}\"]");
+        pgn.AppendLine();
+
+        // Add moves
+        var moves = _chessBoard.Game.GetMovesUpToCurrent();
+        var moveText = new List<string>();
+        
+        for (int i = 0; i < moves.Count; i++)
+        {
+            if (i % 2 == 0)
+            {
+                // White move - add move number
+                var moveNumber = (i / 2) + 1;
+                moveText.Add($"{moveNumber}. {moves[i].GetNotation()}");
+            }
+            else
+            {
+                // Black move - just add the move
+                moveText.Add(moves[i].GetNotation());
+            }
+        }
+        
+        pgn.AppendLine(string.Join(" ", moveText));
+        pgn.AppendLine($" {_chessBoard.Game.GameResult}");
+        
+        return pgn.ToString();
+    }
+
+    public void ExportCurrentGamePgn()
+    {
+        try
+        {
+            var pgnContent = GetCurrentGamePgn();
+            var fileName = $"chess_game_{DateTime.Now:yyyyMMdd_HHmmss}.pgn";
+            var filePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
+            
+            System.IO.File.WriteAllText(filePath, pgnContent);
+            
+            GameStatusText = $"Game exported to: {fileName}";
+        }
+        catch (Exception ex)
+        {
+            GameStatusText = $"Error exporting game: {ex.Message}";
+        }
+    }
+
 
     private void UpdateGamesBankStatus()
     {
@@ -529,6 +626,9 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         // Use the game's move history text which shows moves up to current position
         MoveHistoryText = _chessBoard.Game.GetMoveHistoryText();
         
+        // Update the current FEN position
+        CurrentFenPosition = _chessBoard.GetFen();
+        
         var wasGameOver = IsGameOver;
         IsGameOver = _chessBoard.IsGameOver;
         
@@ -560,6 +660,36 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         }
         
         UpdateNavigationState();
+    }
+
+    private void UpdateMoveHistory()
+    {
+        if (_currentGameMoves != null && _currentGameMoves.Count > 0)
+        {
+            // Format the moves in a readable way
+            var moveHistory = new List<string>();
+            for (int i = 0; i < _currentGameMoves.Count; i += 2)
+            {
+                var moveNumber = (i / 2) + 1;
+                var whiteMove = _currentGameMoves[i];
+                var blackMove = i + 1 < _currentGameMoves.Count ? _currentGameMoves[i + 1] : "";
+                
+                if (!string.IsNullOrEmpty(blackMove))
+                {
+                    moveHistory.Add($"{moveNumber}. {whiteMove} {blackMove}");
+                }
+                else
+                {
+                    moveHistory.Add($"{moveNumber}. {whiteMove}");
+                }
+            }
+            
+            MoveHistoryText = string.Join("\n", moveHistory);
+        }
+        else
+        {
+            MoveHistoryText = "No moves available";
+        }
     }
 
     private void UpdateNavigationState()

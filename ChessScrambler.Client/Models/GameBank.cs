@@ -9,7 +9,7 @@ namespace ChessScrambler.Client.Models
     public class GameBank
     {
         private static readonly List<ImportedGame> _importedGames = new List<ImportedGame>();
-        private static readonly Random _random = new Random();
+        private static readonly Random _random = new Random(Guid.NewGuid().GetHashCode());
         private static readonly object _lock = new object();
 
         public static List<ImportedGame> ImportedGames 
@@ -97,6 +97,9 @@ namespace ChessScrambler.Client.Models
                     Console.WriteLine($"[GAME] Selected game has {game.Moves.Count} moves");
                 }
                 
+                // Initialize the middlegame positions for this game if not already done
+                game.InitializeMiddlegamePositions();
+                
                 return game;
             }
         }
@@ -156,7 +159,7 @@ namespace ChessScrambler.Client.Models
             }
             
             var games = new List<ImportedGame>();
-            var gameBlocks = SplitPgnIntoGames(pgnContent);
+            var gameBlocks = SplitPgnIntoGames(pgnContent ?? string.Empty);
             
             if (Program.EnableGameLogging)
             {
@@ -351,7 +354,7 @@ namespace ChessScrambler.Client.Models
             if (string.IsNullOrEmpty(movesText))
                 return moves;
                 
-            var movePattern = @"(\d+\.\s*)?([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O-O|O-O)";
+            var movePattern = @"(\d+\.\s*)?([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O-O|O-O|0-0-0|0-0)";
             var matches = Regex.Matches(movesText, movePattern);
             
             if (Program.EnableGameLogging)
@@ -370,6 +373,12 @@ namespace ChessScrambler.Client.Models
                         Console.WriteLine($"[GAME] Added move: {move}");
                     }
                 }
+            }
+            
+            // Debug: Show first few moves to verify parsing
+            if (Program.EnableGameLogging && moves.Count > 0)
+            {
+                Console.WriteLine($"[GAME] First 10 moves: {string.Join(", ", moves.Take(10))}");
             }
 
             if (Program.EnableGameLogging)
@@ -394,10 +403,85 @@ namespace ChessScrambler.Client.Models
         public string Opening { get; set; } = string.Empty;
         public List<string> Moves { get; set; } = new List<string>();
         public string FullPgn { get; set; } = string.Empty;
+        
+        // Pre-computed middlegame positions for this game
+        public List<string> MiddlegamePositions { get; set; } = new List<string>();
+        private static readonly Random _random = new Random(Guid.NewGuid().GetHashCode());
 
         public ImportedGame()
         {
             Moves = new List<string>();
+            MiddlegamePositions = new List<string>();
+        }
+
+        public void InitializeMiddlegamePositions()
+        {
+            if (MiddlegamePositions.Count > 0)
+                return;
+
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Initializing middlegame positions for game: {GetDisplayName()}");
+            }
+
+            // Pre-compute 3-5 good middlegame positions for this game
+            var positionsToGenerate = Math.Min(5, Math.Max(3, Moves.Count / 10));
+            
+            for (int i = 0; i < positionsToGenerate; i++)
+            {
+                try
+                {
+                    // Generate a random middlegame position
+                    var fen = GenerateRandomMiddlegamePosition();
+                    MiddlegamePositions.Add(fen);
+                    
+                    if (Program.EnableGameLogging)
+                    {
+                        Console.WriteLine($"[GAME] Generated middlegame position {i + 1}: {fen}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (Program.EnableGameLogging)
+                    {
+                        Console.WriteLine($"[GAME] Error generating middlegame position {i + 1}: {ex.Message}");
+                    }
+                }
+            }
+            
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Initialized {MiddlegamePositions.Count} middlegame positions");
+            }
+        }
+
+        private string GenerateRandomMiddlegamePosition()
+        {
+            // Create a chess game and make some random moves to reach a middlegame position
+            var chessGame = new ChessDotNet.ChessGame();
+            
+            // Make 15-25 random moves to reach middlegame
+            var moveCount = _random.Next(15, 26);
+            
+            for (int i = 0; i < moveCount; i++)
+            {
+                try
+                {
+                    var validMoves = chessGame.GetValidMoves(chessGame.WhoseTurn).ToList();
+                    if (validMoves.Count == 0)
+                        break;
+                        
+                    var randomMove = validMoves[_random.Next(validMoves.Count)];
+                    chessGame.MakeMove(randomMove, true);
+                }
+                catch
+                {
+                    // If move fails, break and return current position
+                    break;
+                }
+            }
+            
+            return chessGame.GetFen();
         }
 
         public string GetDisplayName()
@@ -410,157 +494,30 @@ namespace ChessScrambler.Client.Models
             if (Program.EnableGameLogging)
             {
                 Console.WriteLine($"[GAME] GetMiddlegamePositionFen called for game: {GetDisplayName()}");
-                Console.WriteLine($"[GAME] Total moves available: {Moves.Count}");
             }
             
-            if (Moves.Count == 0)
+            // Initialize middlegame positions if not already done
+            InitializeMiddlegamePositions();
+            
+            if (MiddlegamePositions.Count == 0)
             {
                 if (Program.EnableGameLogging)
                 {
-                    Console.WriteLine("[GAME] No moves available, returning starting position");
+                    Console.WriteLine("[GAME] No middlegame positions available, returning starting position");
                 }
                 return "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
             }
 
-            // If no specific move number, choose a middlegame position (around move 15-25)
-            if (moveNumber == -1)
-            {
-                var middlegameStart = Math.Max(15, Moves.Count / 3);
-                var middlegameEnd = Math.Min(Moves.Count - 5, Moves.Count * 2 / 3);
-                moveNumber = _random.Next(middlegameStart, middlegameEnd + 1);
-                
-                if (Program.EnableGameLogging)
-                {
-                    Console.WriteLine($"[GAME] Selected random move number: {moveNumber} (range: {middlegameStart}-{middlegameEnd})");
-                }
-            }
-
-            // Clamp to valid range
-            moveNumber = Math.Max(0, Math.Min(moveNumber, Moves.Count - 1));
+            // Select a random middlegame position
+            var selectedPosition = MiddlegamePositions[_random.Next(MiddlegamePositions.Count)];
             
             if (Program.EnableGameLogging)
             {
-                Console.WriteLine($"[GAME] Final move number: {moveNumber}");
-            }
-
-            // Create a chess game and replay moves up to the specified position
-            var chessGame = new ChessDotNet.ChessGame();
-            
-            if (Program.EnableGameLogging)
-            {
-                Console.WriteLine($"[GAME] Starting position FEN: {chessGame.GetFen()}");
+                Console.WriteLine($"[GAME] Selected random middlegame position: {selectedPosition}");
             }
             
-            for (int i = 0; i <= moveNumber; i++)
-            {
-                try
-                {
-                    var move = Moves[i];
-                    if (Program.EnableGameLogging)
-                    {
-                        Console.WriteLine($"[GAME] Processing move {i + 1}: {move}");
-                    }
-                    
-                    var validMoves = chessGame.GetValidMoves(chessGame.WhoseTurn);
-                    var chessMove = FindMatchingMove(validMoves, move, chessGame.WhoseTurn);
-                    
-                    if (chessMove != null)
-                    {
-                        chessGame.MakeMove(chessMove, true);
-                        if (Program.EnableGameLogging)
-                        {
-                            Console.WriteLine($"[GAME] Move {i + 1} applied successfully: {move}");
-                        }
-                    }
-                    else
-                    {
-                        if (Program.EnableGameLogging)
-                        {
-                            Console.WriteLine($"[GAME] Move {i + 1} not found in valid moves, stopping replay");
-                            Console.WriteLine($"[GAME] Available moves: {string.Join(", ", validMoves.Take(10).Select(m => m.ToString()))}");
-                        }
-                        break;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    if (Program.EnableGameLogging)
-                    {
-                        Console.WriteLine($"[GAME] Error processing move {i + 1}: {ex.Message}");
-                    }
-                    // If move parsing fails, return the current position
-                    break;
-                }
-            }
-
-            var finalFen = chessGame.GetFen();
-            if (Program.EnableGameLogging)
-            {
-                Console.WriteLine($"[GAME] Final FEN after {moveNumber + 1} moves: {finalFen}");
-            }
-            
-            return finalFen;
+            return selectedPosition;
         }
 
-        private static readonly Random _random = new Random();
-        
-        private static ChessDotNet.Move? FindMatchingMove(IEnumerable<ChessDotNet.Move> validMoves, string pgnMove, ChessDotNet.Player currentPlayer)
-        {
-            // First try exact match
-            var exactMatch = validMoves.FirstOrDefault(m => m.ToString() == pgnMove);
-            if (exactMatch != null)
-                return exactMatch;
-            
-            // Try to find by piece type and destination
-            var moveStr = pgnMove.Trim();
-            
-            // Handle special moves
-            if (moveStr == "O-O" || moveStr == "0-0")
-            {
-                return validMoves.FirstOrDefault(m => m.ToString().Contains("O-O"));
-            }
-            if (moveStr == "O-O-O" || moveStr == "0-0-0")
-            {
-                return validMoves.FirstOrDefault(m => m.ToString().Contains("O-O-O"));
-            }
-            
-            // Try to match by destination square
-            var destinationMatch = validMoves.FirstOrDefault(m => 
-            {
-                var moveStr2 = m.ToString();
-                // Extract destination from ChessDotNet move (e.g., "E2-E4" -> "E4")
-                var parts = moveStr2.Split('-');
-                if (parts.Length == 2)
-                {
-                    var dest = parts[1];
-                    return moveStr.EndsWith(dest, StringComparison.OrdinalIgnoreCase);
-                }
-                return false;
-            });
-            
-            if (destinationMatch != null)
-                return destinationMatch;
-            
-            // Try to match by piece type and destination
-            if (moveStr.Length >= 2)
-            {
-                var destSquare = moveStr.Substring(moveStr.Length - 2);
-                var pieceType = moveStr.Length > 2 ? moveStr[0] : 'P'; // Default to pawn
-                
-                return validMoves.FirstOrDefault(m =>
-                {
-                    var moveStr2 = m.ToString();
-                    var parts = moveStr2.Split('-');
-                    if (parts.Length == 2)
-                    {
-                        var dest = parts[1];
-                        return dest.Equals(destSquare, StringComparison.OrdinalIgnoreCase);
-                    }
-                    return false;
-                });
-            }
-            
-            return null;
-        }
     }
 }

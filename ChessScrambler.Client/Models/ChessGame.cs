@@ -52,7 +52,7 @@ namespace ChessScrambler.Client.Models
         {
             // Generate a unique game ID using timestamp and random component
             var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-            var random = new Random().Next(1000, 9999);
+            var random = new Random(Guid.NewGuid().GetHashCode()).Next(1000, 9999);
             return $"GAME_{timestamp}_{random}";
         }
 

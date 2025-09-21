@@ -12,6 +12,7 @@ namespace ChessScrambler.Client;
 public partial class MainWindow : Window
 {
     private ChessBoardViewModel? _viewModel;
+    private bool _isLoadingNewPosition = false;
 
     public MainWindow()
     {
@@ -77,17 +78,33 @@ public partial class MainWindow : Window
         }
     }
 
-    private void NewPosition_Click(object sender, RoutedEventArgs e)
+    private async void NewPosition_Click(object sender, RoutedEventArgs e)
     {
+        // Prevent multiple rapid clicks
+        if (_isLoadingNewPosition)
+        {
+            LogUIEvent("Button", "NewPosition", "Button click ignored - already loading");
+            Console.WriteLine("[DEBUG] NewPosition_Click ignored - already loading");
+            return;
+        }
+
         LogUIEvent("Button", "NewPosition", "New position button clicked");
         Console.WriteLine("[DEBUG] NewPosition_Click called");
         Console.WriteLine($"[DEBUG] ViewModel is null: {_viewModel == null}");
         
         if (_viewModel != null)
         {
-            Console.WriteLine("[DEBUG] Calling LoadNewPosition on ViewModel");
-            _viewModel.LoadNewPosition();
-            Console.WriteLine("[DEBUG] LoadNewPosition call completed");
+            _isLoadingNewPosition = true;
+            try
+            {
+                Console.WriteLine("[DEBUG] Calling LoadNewPosition on ViewModel");
+                await _viewModel.LoadNewPosition();
+                Console.WriteLine("[DEBUG] LoadNewPosition call completed");
+            }
+            finally
+            {
+                _isLoadingNewPosition = false;
+            }
         }
         else
         {
@@ -238,6 +255,12 @@ public partial class MainWindow : Window
     {
         LogUIEvent("Button", "ClearGamesBank", "Clear games bank button clicked");
         _viewModel?.ClearImportedGames();
+    }
+
+    private void ExportCurrentGamePgn_Click(object sender, RoutedEventArgs e)
+    {
+        LogUIEvent("Button", "ExportCurrentGamePgn", "Export current game PGN button clicked");
+        _viewModel?.ExportCurrentGamePgn();
     }
 
 }
