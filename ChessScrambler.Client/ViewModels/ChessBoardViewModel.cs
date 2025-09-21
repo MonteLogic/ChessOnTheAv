@@ -69,6 +69,10 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     private string _gameStatusText;
     private bool _showGameEndPopup;
     private string _gameEndMessage;
+    private string _gameIdText;
+    private bool _canGoBack;
+    private bool _canGoForward;
+    private string _moveNavigationText;
 
     public ObservableCollection<SquareViewModel> Squares { get; } = new ObservableCollection<SquareViewModel>();
 
@@ -122,6 +126,30 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     {
         get => _gameEndMessage;
         set => SetProperty(ref _gameEndMessage, value);
+    }
+
+    public string GameIdText
+    {
+        get => _gameIdText;
+        set => SetProperty(ref _gameIdText, value);
+    }
+
+    public bool CanGoBack
+    {
+        get => _canGoBack;
+        set => SetProperty(ref _canGoBack, value);
+    }
+
+    public bool CanGoForward
+    {
+        get => _canGoForward;
+        set => SetProperty(ref _canGoForward, value);
+    }
+
+    public string MoveNavigationText
+    {
+        get => _moveNavigationText;
+        set => SetProperty(ref _moveNavigationText, value);
     }
 
     public ChessBoardViewModel()
@@ -189,6 +217,50 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         ShowGameEndPopup = false;
     }
 
+    public void GoToFirstMove()
+    {
+        if (_chessBoard != null)
+        {
+            _chessBoard.GoToFirstMove();
+            UpdateBoard();
+            UpdateGameStatus();
+            UpdateNavigationState();
+        }
+    }
+
+    public void GoToLastMove()
+    {
+        if (_chessBoard != null)
+        {
+            _chessBoard.GoToLastMove();
+            UpdateBoard();
+            UpdateGameStatus();
+            UpdateNavigationState();
+        }
+    }
+
+    public void GoToPreviousMove()
+    {
+        if (_chessBoard != null)
+        {
+            _chessBoard.GoToPreviousMove();
+            UpdateBoard();
+            UpdateGameStatus();
+            UpdateNavigationState();
+        }
+    }
+
+    public void GoToNextMove()
+    {
+        if (_chessBoard != null)
+        {
+            _chessBoard.GoToNextMove();
+            UpdateBoard();
+            UpdateGameStatus();
+            UpdateNavigationState();
+        }
+    }
+
     private void UpdateBoard()
     {
         for (int row = 0; row < 8; row++)
@@ -212,31 +284,16 @@ public class ChessBoardViewModel : INotifyPropertyChanged
             Console.WriteLine($"[GAME] UpdateGameStatus called - Current player: {_chessBoard.CurrentPlayer}");
         }
         
+        // Update game ID
+        GameIdText = $"Game ID: {_chessBoard.Game.Id}";
+        
         // Check if current player is in check
         var isInCheck = _chessBoard.IsInCheck(_chessBoard.CurrentPlayer);
         var checkText = isInCheck ? " (CHECK!)" : "";
         CurrentPlayerText = $"Current Player: {(_chessBoard.CurrentPlayer == PieceColor.White ? "White" : "Black")}{checkText}";
         
-        var moves = _chessBoard.MoveHistory.Select(m => m.GetAlgebraicNotation(_chessBoard)).ToList();
-        
-        // Format moves in a more readable way with move numbers
-        var formattedMoves = new List<string>();
-        for (int i = 0; i < moves.Count; i++)
-        {
-            if (i % 2 == 0)
-            {
-                // White move - add move number
-                var moveNumber = (i / 2) + 1;
-                formattedMoves.Add($"{moveNumber}. {moves[i]}");
-            }
-            else
-            {
-                // Black move - just add the move
-                formattedMoves.Add(moves[i]);
-            }
-        }
-        
-        MoveHistoryText = string.Join(" ", formattedMoves);
+        // Use the game's move history text which shows moves up to current position
+        MoveHistoryText = _chessBoard.Game.GetMoveHistoryText();
         
         var wasGameOver = IsGameOver;
         IsGameOver = _chessBoard.IsGameOver;
@@ -266,6 +323,21 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         else
         {
             GameStatusText = isInCheck ? "Check!" : "Game in Progress";
+        }
+        
+        UpdateNavigationState();
+    }
+
+    private void UpdateNavigationState()
+    {
+        if (_chessBoard != null)
+        {
+            CanGoBack = _chessBoard.CanGoBack;
+            CanGoForward = _chessBoard.CanGoForward;
+            
+            var currentMove = _chessBoard.Game.CurrentMoveIndex + 1;
+            var totalMoves = _chessBoard.Game.MoveHistory.Count;
+            MoveNavigationText = $"Move {currentMove} of {totalMoves}";
         }
     }
 

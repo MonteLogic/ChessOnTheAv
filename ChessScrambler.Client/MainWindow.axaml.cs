@@ -157,4 +157,28 @@ public partial class MainWindow : Window
         LogUIEvent("Button", "ClosePopup", "Close popup button clicked");
         _viewModel?.CloseGameEndPopup();
     }
+
+    private void GoToFirstMove_Click(object sender, RoutedEventArgs e)
+    {
+        LogUIEvent("Button", "GoToFirstMove", "Go to first move button clicked");
+        _viewModel?.GoToFirstMove();
+    }
+
+    private void GoToPreviousMove_Click(object sender, RoutedEventArgs e)
+    {
+        LogUIEvent("Button", "GoToPreviousMove", "Go to previous move button clicked");
+        _viewModel?.GoToPreviousMove();
+    }
+
+    private void GoToNextMove_Click(object sender, RoutedEventArgs e)
+    {
+        LogUIEvent("Button", "GoToNextMove", "Go to next move button clicked");
+        _viewModel?.GoToNextMove();
+    }
+
+    private void GoToLastMove_Click(object sender, RoutedEventArgs e)
+    {
+        LogUIEvent("Button", "GoToLastMove", "Go to last move button clicked");
+        _viewModel?.GoToLastMove();
+    }
 }

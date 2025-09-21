@@ -187,11 +187,13 @@ namespace ChessScrambler.Client.Models
 
     public class ChessBoard
     {
-        private ChessGame _chessGame;
+        private ChessDotNet.ChessGame _chessGame;
         private List<Move> _moveHistory;
+        private Models.ChessGame _game;
 
         public PieceColor CurrentPlayer => _chessGame.WhoseTurn == Player.White ? PieceColor.White : PieceColor.Black;
         public List<Move> MoveHistory => _moveHistory;
+        public Models.ChessGame Game => _game;
         public bool IsGameOver => _chessGame.IsCheckmated(Player.White) || _chessGame.IsCheckmated(Player.Black) || 
                                  _chessGame.IsStalemated(Player.White) || _chessGame.IsStalemated(Player.Black);
         public PieceColor? Winner
@@ -206,14 +208,37 @@ namespace ChessScrambler.Client.Models
 
         public ChessBoard()
         {
-            _chessGame = new ChessGame();
+            _chessGame = new ChessDotNet.ChessGame();
             _moveHistory = new List<Move>();
+            _game = new Models.ChessGame();
         }
 
         public ChessBoard(string fen)
         {
-            _chessGame = new ChessGame(fen);
+            _chessGame = new ChessDotNet.ChessGame(fen);
             _moveHistory = new List<Move>();
+            _game = new Models.ChessGame(fen);
+        }
+
+        public ChessBoard(Models.ChessGame game)
+        {
+            _game = game;
+            _moveHistory = new List<Move>(game.MoveHistory);
+            _chessGame = new ChessDotNet.ChessGame(game.InitialFen);
+            
+            // Replay all moves to get to the current position
+            foreach (var move in _moveHistory)
+            {
+                var fromPos = move.From.ToChessDotNetPosition();
+                var toPos = move.To.ToChessDotNetPosition();
+                var validMoves = _chessGame.GetValidMoves(_chessGame.WhoseTurn);
+                var chessDotNetMove = validMoves.FirstOrDefault(m => m.OriginalPosition.ToString() == fromPos.ToString() && 
+                                                                    m.NewPosition.ToString() == toPos.ToString());
+                if (chessDotNetMove != null)
+                {
+                    _chessGame.MakeMove(chessDotNetMove, true);
+                }
+            }
         }
 
         public ChessPiece? GetPiece(int row, int col)
@@ -372,6 +397,22 @@ namespace ChessScrambler.Client.Models
                 move.IsCheckmate = IsCheckmate(currentPlayerColor);
                 
                 _moveHistory.Add(move);
+                _game.AddMove(move);
+                
+                // Update game result if game is over
+                if (IsGameOver)
+                {
+                    if (Winner.HasValue)
+                    {
+                        var result = Winner == PieceColor.White ? "1-0" : "0-1";
+                        _game.SetGameResult(result);
+                    }
+                    else
+                    {
+                        _game.SetGameResult("1/2-1/2");
+                    }
+                }
+                
                 if (Program.EnableGameLogging)
                 {
                     Console.WriteLine($"[GAME] Move added to history. Total moves: {_moveHistory.Count}");
@@ -429,6 +470,63 @@ namespace ChessScrambler.Client.Models
         {
             var player = color == PieceColor.White ? Player.White : Player.Black;
             return _chessGame.IsStalemated(player);
+        }
+
+        public void GoToMove(int moveIndex)
+        {
+            _game.GoToMove(moveIndex);
+            ReplayMovesToCurrentPosition();
+        }
+
+        public void GoToFirstMove()
+        {
+            _game.GoToFirstMove();
+            ReplayMovesToCurrentPosition();
+        }
+
+        public void GoToLastMove()
+        {
+            _game.GoToLastMove();
+            ReplayMovesToCurrentPosition();
+        }
+
+        public void GoToPreviousMove()
+        {
+            _game.GoToPreviousMove();
+            ReplayMovesToCurrentPosition();
+        }
+
+        public void GoToNextMove()
+        {
+            _game.GoToNextMove();
+            ReplayMovesToCurrentPosition();
+        }
+
+        public bool CanGoBack => _game.CanGoBack;
+        public bool CanGoForward => _game.CanGoForward;
+
+        private void ReplayMovesToCurrentPosition()
+        {
+            // Reset to initial position
+            _chessGame = new ChessDotNet.ChessGame(_game.InitialFen);
+            
+            // Replay moves up to the current position
+            var movesToReplay = _game.GetMovesUpToCurrent();
+            _moveHistory.Clear();
+            
+            foreach (var move in movesToReplay)
+            {
+                var fromPos = move.From.ToChessDotNetPosition();
+                var toPos = move.To.ToChessDotNetPosition();
+                var validMoves = _chessGame.GetValidMoves(_chessGame.WhoseTurn);
+                var chessDotNetMove = validMoves.FirstOrDefault(m => m.OriginalPosition.ToString() == fromPos.ToString() && 
+                                                                    m.NewPosition.ToString() == toPos.ToString());
+                if (chessDotNetMove != null)
+                {
+                    _chessGame.MakeMove(chessDotNetMove, true);
+                    _moveHistory.Add(move);
+                }
+            }
         }
 
         private PieceType ConvertPieceType(Piece piece)
