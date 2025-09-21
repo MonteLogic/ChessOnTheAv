@@ -59,6 +59,8 @@ namespace ChessScrambler.Client.Models
         public bool IsCapture { get; set; }
         public bool IsCastling { get; set; }
         public bool IsEnPassant { get; set; }
+        public bool IsCheck { get; set; }
+        public bool IsCheckmate { get; set; }
 
         public Move(Position from, Position to)
         {
@@ -79,8 +81,9 @@ namespace ChessScrambler.Client.Models
             var target = To.GetAlgebraicNotation();
             var capture = IsCapture ? "x" : "";
             var promotion = PromotionPiece.HasValue ? $"={GetPieceNotation(PromotionPiece.Value)}" : "";
+            var checkSymbol = IsCheckmate ? "#" : (IsCheck ? "+" : "");
 
-            return $"{pieceNotation}{capture}{target}{promotion}";
+            return $"{pieceNotation}{capture}{target}{promotion}{checkSymbol}";
         }
 
         private static string GetPieceNotation(PieceType pieceType)
@@ -236,9 +239,15 @@ namespace ChessScrambler.Client.Models
             
             if (success)
             {
+                // Check for check and checkmate after the move
+                var opponentColor = _chessGame.WhoseTurn == Player.White ? PieceColor.Black : PieceColor.White;
+                move.IsCheck = IsInCheck(opponentColor);
+                move.IsCheckmate = IsCheckmate(opponentColor);
+                
                 _moveHistory.Add(move);
                 Console.WriteLine($"[LOG] Move added to history. Total moves: {_moveHistory.Count}");
                 Console.WriteLine($"[LOG] New current player: {_chessGame.WhoseTurn}");
+                Console.WriteLine($"[LOG] Move is check: {move.IsCheck}, is checkmate: {move.IsCheckmate}");
             }
             
             return success;

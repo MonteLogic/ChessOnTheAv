@@ -53,7 +53,10 @@ public partial class MainWindow : Window
 
     private void LogUIEvent(string category, string action, string details)
     {
-        Console.WriteLine($"[UI] {category}.{action}: {details}");
+        if (Program.EnableUILogging)
+        {
+            Console.WriteLine($"[UI] {category}.{action}: {details}");
+        }
     }
 
     private void Square_PointerPressed(object sender, PointerPressedEventArgs e)
@@ -140,5 +143,18 @@ public partial class MainWindow : Window
         {
             LogUIEvent("TextSelection", "Instructions", "Copy operation (Ctrl+C) detected");
         }
+    }
+
+    private void NewGame_Click(object sender, RoutedEventArgs e)
+    {
+        LogUIEvent("Button", "NewGame", "New game button clicked from popup");
+        _viewModel?.LoadNewPosition();
+        _viewModel?.CloseGameEndPopup();
+    }
+
+    private void ClosePopup_Click(object sender, RoutedEventArgs e)
+    {
+        LogUIEvent("Button", "ClosePopup", "Close popup button clicked");
+        _viewModel?.CloseGameEndPopup();
     }
 }

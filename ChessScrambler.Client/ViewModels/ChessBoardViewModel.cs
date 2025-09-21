@@ -67,6 +67,8 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     private string _moveHistoryText;
     private bool _isGameOver;
     private string _gameStatusText;
+    private bool _showGameEndPopup;
+    private string _gameEndMessage;
 
     public ObservableCollection<SquareViewModel> Squares { get; } = new ObservableCollection<SquareViewModel>();
 
@@ -108,6 +110,18 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     {
         get => _gameStatusText;
         set => SetProperty(ref _gameStatusText, value);
+    }
+
+    public bool ShowGameEndPopup
+    {
+        get => _showGameEndPopup;
+        set => SetProperty(ref _showGameEndPopup, value);
+    }
+
+    public string GameEndMessage
+    {
+        get => _gameEndMessage;
+        set => SetProperty(ref _gameEndMessage, value);
     }
 
     public ChessBoardViewModel()
@@ -170,6 +184,11 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         }
     }
 
+    public void CloseGameEndPopup()
+    {
+        ShowGameEndPopup = false;
+    }
+
     private void UpdateBoard()
     {
         for (int row = 0; row < 8; row++)
@@ -189,7 +208,11 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     private void UpdateGameStatus()
     {
         Console.WriteLine($"[LOG] UpdateGameStatus called - Current player: {_chessBoard.CurrentPlayer}");
-        CurrentPlayerText = $"Current Player: {(_chessBoard.CurrentPlayer == PieceColor.White ? "White" : "Black")}";
+        
+        // Check if current player is in check
+        var isInCheck = _chessBoard.IsInCheck(_chessBoard.CurrentPlayer);
+        var checkText = isInCheck ? " (CHECK!)" : "";
+        CurrentPlayerText = $"Current Player: {(_chessBoard.CurrentPlayer == PieceColor.White ? "White" : "Black")}{checkText}";
         
         var moves = _chessBoard.MoveHistory.Select(m => m.GetNotation()).ToList();
         
@@ -212,12 +235,35 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         
         MoveHistoryText = string.Join(" ", formattedMoves);
         
+        var wasGameOver = IsGameOver;
         IsGameOver = _chessBoard.IsGameOver;
-        GameStatusText = IsGameOver ? 
-            (_chessBoard.Winner.HasValue ? 
-                $"Game Over - {(_chessBoard.Winner == PieceColor.White ? "White" : "Black")} Wins!" : 
-                "Game Over - Draw!") : 
-            "Game in Progress";
+        
+        if (IsGameOver)
+        {
+            if (_chessBoard.Winner.HasValue)
+            {
+                var winner = _chessBoard.Winner == PieceColor.White ? "White" : "Black";
+                GameStatusText = $"Game Over - {winner} Wins by Checkmate!";
+                GameEndMessage = $"🎉 {winner} Wins by Checkmate! 🎉";
+            }
+            else
+            {
+                // Check if it's stalemate
+                var isStalemate = _chessBoard.IsStalemate(_chessBoard.CurrentPlayer);
+                GameStatusText = isStalemate ? "Game Over - Stalemate (Draw)!" : "Game Over - Draw!";
+                GameEndMessage = isStalemate ? "🤝 Stalemate - It's a Draw! 🤝" : "🤝 Game Over - Draw! 🤝";
+            }
+            
+            // Show popup if game just ended
+            if (!wasGameOver)
+            {
+                ShowGameEndPopup = true;
+            }
+        }
+        else
+        {
+            GameStatusText = isInCheck ? "Check!" : "Game in Progress";
+        }
     }
 
     public void OnSquareClicked(SquareViewModel square)

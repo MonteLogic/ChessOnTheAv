@@ -175,5 +175,52 @@
                 </Border>
             </StackPanel>
         </Border>
+
+        <!-- Game End Popup Dialog -->
+        <Border IsVisible="{Binding ShowGameEndPopup}"
+                Background="#80000000"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                ZIndex="1000"
+                Grid.ColumnSpan="2">
+            <Border Background="#2C2C2C"
+                    BorderBrush="#4CAF50"
+                    BorderThickness="3"
+                    CornerRadius="10"
+                    Padding="30"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    MinWidth="400"
+                    MaxWidth="600">
+                <StackPanel Spacing="20" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding GameEndMessage}"
+                               Foreground="White"
+                               FontSize="24"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"/>
+                    
+                    <StackPanel Orientation="Horizontal" 
+                                HorizontalAlignment="Center" 
+                                Spacing="15">
+                        <Button Content="New Game"
+                                Background="#4CAF50"
+                                Foreground="White"
+                                Padding="15,10"
+                                FontSize="16"
+                                FontWeight="Bold"
+                                Click="NewGame_Click"/>
+                        <Button Content="Close"
+                                Background="#666666"
+                                Foreground="White"
+                                Padding="15,10"
+                                FontSize="16"
+                                FontWeight="Bold"
+                                Click="ClosePopup_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
     </Grid>
 </Window>
