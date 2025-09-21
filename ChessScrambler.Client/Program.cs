@@ -36,6 +36,7 @@ class Program
                     EnableGameLogging = false;
                     break;
                 case "--game-only":
+                case "-go":
                     EnableUILogging = false;
                     break;
                 case "--help":
@@ -57,11 +58,12 @@ class Program
         Console.WriteLine("  --no-ui-logging, --no-ui    Disable UI event logging");
         Console.WriteLine("  --no-game-logging, --no-game Disable game event logging");
         Console.WriteLine("  --ui-only                    Enable only UI logging");
-        Console.WriteLine("  --game-only                  Enable only game logging");
+        Console.WriteLine("  --game-only, -go             Enable only game logging");
         Console.WriteLine("  --help, -h                   Show this help message");
         Console.WriteLine();
         Console.WriteLine("Examples:");
         Console.WriteLine("  ChessScrambler.Client --game-only    # Only log game events");
+        Console.WriteLine("  ChessScrambler.Client -go            # Only log game events (short form)");
         Console.WriteLine("  ChessScrambler.Client --no-ui        # Disable UI logging");
     }
 

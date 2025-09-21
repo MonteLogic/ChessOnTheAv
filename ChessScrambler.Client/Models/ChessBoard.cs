@@ -83,7 +83,91 @@ namespace ChessScrambler.Client.Models
             var promotion = PromotionPiece.HasValue ? $"={GetPieceNotation(PromotionPiece.Value)}" : "";
             var checkSymbol = IsCheckmate ? "#" : (IsCheck ? "+" : "");
 
+            // For pawn moves, we don't include the piece notation
+            if (PieceType == PieceType.Pawn)
+            {
+                return $"{capture}{target}{promotion}{checkSymbol}";
+            }
+
             return $"{pieceNotation}{capture}{target}{promotion}{checkSymbol}";
+        }
+
+        public string GetAlgebraicNotation(ChessBoard board)
+        {
+            if (IsCastling)
+            {
+                return To.Column == 6 ? "O-O" : "O-O-O";
+            }
+
+            var pieceNotation = GetPieceNotation(PieceType);
+            var target = To.GetAlgebraicNotation();
+            var capture = IsCapture ? "x" : "";
+            var promotion = PromotionPiece.HasValue ? $"={GetPieceNotation(PromotionPiece.Value)}" : "";
+            var checkSymbol = IsCheckmate ? "#" : (IsCheck ? "+" : "");
+
+            // For pawn moves
+            if (PieceType == PieceType.Pawn)
+            {
+                // For pawn captures, include the file of departure
+                if (IsCapture)
+                {
+                    var fromFile = From.GetAlgebraicNotation()[0];
+                    return $"{fromFile}{capture}{target}{promotion}{checkSymbol}";
+                }
+                return $"{target}{promotion}{checkSymbol}";
+            }
+
+            // For other pieces, we need to check for disambiguation
+            var disambiguation = GetDisambiguation(board);
+            return $"{pieceNotation}{disambiguation}{capture}{target}{checkSymbol}";
+        }
+
+        private string GetDisambiguation(ChessBoard board)
+        {
+            if (PieceType == PieceType.Pawn) return "";
+
+            // Find all pieces of the same type and color that can move to the target square
+            var sameTypePieces = new List<Position>();
+            var currentPlayer = board.CurrentPlayer;
+
+            for (int row = 0; row < 8; row++)
+            {
+                for (int col = 0; col < 8; col++)
+                {
+                    var piece = board.GetPiece(row, col);
+                    if (piece != null && piece.Type == PieceType && piece.Color == currentPlayer)
+                    {
+                        var validMoves = board.GetValidMoves(new Position(row, col));
+                        if (validMoves.Any(m => m.To.Equals(To)))
+                        {
+                            sameTypePieces.Add(new Position(row, col));
+                        }
+                    }
+                }
+            }
+
+            // If only one piece can make this move, no disambiguation needed
+            if (sameTypePieces.Count <= 1)
+            {
+                return "";
+            }
+
+            // Check if we need file disambiguation
+            var sameFilePieces = sameTypePieces.Where(p => p.Column == From.Column).ToList();
+            if (sameFilePieces.Count == 1)
+            {
+                return From.GetAlgebraicNotation()[0].ToString();
+            }
+
+            // Check if we need rank disambiguation
+            var sameRankPieces = sameTypePieces.Where(p => p.Row == From.Row).ToList();
+            if (sameRankPieces.Count == 1)
+            {
+                return From.GetAlgebraicNotation()[1].ToString();
+            }
+
+            // Need both file and rank
+            return From.GetAlgebraicNotation();
         }
 
         private static string GetPieceNotation(PieceType pieceType)
@@ -163,47 +247,74 @@ namespace ChessScrambler.Client.Models
 
         public bool IsValidMove(Move move)
         {
-            Console.WriteLine($"[LOG] IsValidMove called: {move.From.Row},{move.From.Column} -> {move.To.Row},{move.To.Column}");
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] IsValidMove called: {move.From.Row},{move.From.Column} -> {move.To.Row},{move.To.Column}");
+            }
             
             if (move.From.Row < 0 || move.From.Row >= 8 || move.From.Column < 0 || move.From.Column >= 8)
             {
-                Console.WriteLine("[LOG] Invalid move: From position out of bounds");
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine("[GAME] Invalid move: From position out of bounds");
+                }
                 return false;
             }
             if (move.To.Row < 0 || move.To.Row >= 8 || move.To.Column < 0 || move.To.Column >= 8)
             {
-                Console.WriteLine("[LOG] Invalid move: To position out of bounds");
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine("[GAME] Invalid move: To position out of bounds");
+                }
                 return false;
             }
 
             var fromPos = move.From.ToChessDotNetPosition();
             var toPos = move.To.ToChessDotNetPosition();
-            Console.WriteLine($"[LOG] Converted to ChessDotNet positions: {fromPos} -> {toPos}");
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Converted to ChessDotNet positions: {fromPos} -> {toPos}");
+            }
             
             var validMoves = _chessGame.GetValidMoves(_chessGame.WhoseTurn);
-            Console.WriteLine($"[LOG] ChessDotNet valid moves count: {validMoves.Count}");
-            Console.WriteLine($"[LOG] Current player: {_chessGame.WhoseTurn}");
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] ChessDotNet valid moves count: {validMoves.Count}");
+                Console.WriteLine($"[GAME] Current player: {_chessGame.WhoseTurn}");
+            }
             
             var isValid = validMoves.Any(m => m.OriginalPosition.ToString() == fromPos.ToString() && 
                                       m.NewPosition.ToString() == toPos.ToString());
-            Console.WriteLine($"[LOG] Move validation result: {isValid}");
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Move validation result: {isValid}");
+            }
             
             return isValid;
         }
 
         public bool MakeMove(Move move)
         {
-            Console.WriteLine($"[LOG] MakeMove called: {move.From.Row},{move.From.Column} -> {move.To.Row},{move.To.Column}");
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] MakeMove called: {move.From.Row},{move.From.Column} -> {move.To.Row},{move.To.Column}");
+            }
             
             if (!IsValidMove(move))
             {
-                Console.WriteLine("[LOG] MakeMove failed: Move is not valid");
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine("[GAME] MakeMove failed: Move is not valid");
+                }
                 return false;
             }
 
             var fromPos = move.From.ToChessDotNetPosition();
             var toPos = move.To.ToChessDotNetPosition();
-            Console.WriteLine($"[LOG] Making move with ChessDotNet: {fromPos} -> {toPos}");
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Making move with ChessDotNet: {fromPos} -> {toPos}");
+            }
             
             var validMoves = _chessGame.GetValidMoves(_chessGame.WhoseTurn);
             var chessDotNetMove = validMoves.FirstOrDefault(m => m.OriginalPosition.ToString() == fromPos.ToString() && 
@@ -211,11 +322,17 @@ namespace ChessScrambler.Client.Models
             
             if (chessDotNetMove == null)
             {
-                Console.WriteLine("[LOG] MakeMove failed: Could not find matching ChessDotNet move");
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine("[GAME] MakeMove failed: Could not find matching ChessDotNet move");
+                }
                 return false;
             }
 
-            Console.WriteLine($"[LOG] Found ChessDotNet move: {chessDotNetMove}");
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Found ChessDotNet move: {chessDotNetMove}");
+            }
             
             // Get piece type before making the move
             var fromPiece = _chessGame.GetPieceAt(fromPos);
@@ -223,10 +340,16 @@ namespace ChessScrambler.Client.Models
             
             var targetPiece = _chessGame.GetPieceAt(toPos);
             move.IsCapture = targetPiece != null;
-            Console.WriteLine($"[LOG] Target piece: {targetPiece?.ToString() ?? "null"}, IsCapture: {move.IsCapture}");
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Target piece: {targetPiece?.ToString() ?? "null"}, IsCapture: {move.IsCapture}");
+            }
 
             var moveResult = _chessGame.MakeMove(chessDotNetMove, true);
-            Console.WriteLine($"[LOG] ChessDotNet MakeMove result: {moveResult}");
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] ChessDotNet MakeMove result: {moveResult}");
+            }
             
             // Check if the move was successful by looking at the move result
             // ChessDotNet returns a combination of move types, so we check if it contains any valid move type
@@ -235,19 +358,26 @@ namespace ChessScrambler.Client.Models
                           moveResult.HasFlag(ChessDotNet.MoveType.Castling) ||
                           moveResult.HasFlag(ChessDotNet.MoveType.EnPassant);
             
-            Console.WriteLine($"[LOG] Move success: {success}");
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Move success: {success}");
+            }
             
             if (success)
             {
                 // Check for check and checkmate after the move
-                var opponentColor = _chessGame.WhoseTurn == Player.White ? PieceColor.Black : PieceColor.White;
-                move.IsCheck = IsInCheck(opponentColor);
-                move.IsCheckmate = IsCheckmate(opponentColor);
+                // The move was made by the previous player, so we check if they checkmated the current player
+                var currentPlayerColor = _chessGame.WhoseTurn == Player.White ? PieceColor.White : PieceColor.Black;
+                move.IsCheck = IsInCheck(currentPlayerColor);
+                move.IsCheckmate = IsCheckmate(currentPlayerColor);
                 
                 _moveHistory.Add(move);
-                Console.WriteLine($"[LOG] Move added to history. Total moves: {_moveHistory.Count}");
-                Console.WriteLine($"[LOG] New current player: {_chessGame.WhoseTurn}");
-                Console.WriteLine($"[LOG] Move is check: {move.IsCheck}, is checkmate: {move.IsCheckmate}");
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Move added to history. Total moves: {_moveHistory.Count}");
+                    Console.WriteLine($"[GAME] New current player: {_chessGame.WhoseTurn}");
+                    Console.WriteLine($"[GAME] Move is check: {move.IsCheck}, is checkmate: {move.IsCheckmate}");
+                }
             }
             
             return success;
