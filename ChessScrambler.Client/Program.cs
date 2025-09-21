@@ -15,6 +15,14 @@ class Program
     public static void Main(string[] args)
     {
         ParseCommandLineArgs(args);
+        
+        // Check if we should run console test instead of GUI
+        if (args.Length > 0 && args[0] == "--test-pgn")
+        {
+            TestPgnParsing.RunTest();
+            return;
+        }
+        
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
