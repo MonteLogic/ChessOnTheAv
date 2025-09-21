@@ -1,8 +1,11 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using ChessScrambler.Client.ViewModels;
 using System;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace ChessScrambler.Client;
 
@@ -180,5 +183,48 @@ public partial class MainWindow : Window
     {
         LogUIEvent("Button", "GoToLastMove", "Go to last move button clicked");
         _viewModel?.GoToLastMove();
+    }
+
+    private async void ImportPgnFile_Click(object sender, RoutedEventArgs e)
+    {
+        LogUIEvent("Button", "ImportPgnFile", "Import PGN file button clicked");
+        
+        try
+        {
+            var options = new FilePickerOpenOptions
+            {
+                Title = "Select PGN File",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("PGN Files")
+                    {
+                        Patterns = new[] { "*.pgn" }
+                    },
+                    new FilePickerFileType("All Files")
+                    {
+                        Patterns = new[] { "*.*" }
+                    }
+                }
+            };
+
+            var files = await StorageProvider.OpenFilePickerAsync(options);
+            
+            if (files.Count > 0 && files[0] is IStorageFile file)
+            {
+                var filePath = file.Path.LocalPath;
+                _viewModel?.ImportGamesFromFile(filePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            LogUIEvent("Error", "ImportPgnFile", $"Error importing PGN file: {ex.Message}");
+        }
+    }
+
+    private void ClearGamesBank_Click(object sender, RoutedEventArgs e)
+    {
+        LogUIEvent("Button", "ClearGamesBank", "Clear games bank button clicked");
+        _viewModel?.ClearImportedGames();
     }
 }

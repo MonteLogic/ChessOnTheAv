@@ -73,6 +73,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     private bool _canGoBack;
     private bool _canGoForward;
     private string _moveNavigationText;
+    private string _gamesBankStatus;
 
     public ObservableCollection<SquareViewModel> Squares { get; } = new ObservableCollection<SquareViewModel>();
 
@@ -152,10 +153,17 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         set => SetProperty(ref _moveNavigationText, value);
     }
 
+    public string GamesBankStatus
+    {
+        get => _gamesBankStatus;
+        set => SetProperty(ref _gamesBankStatus, value);
+    }
+
     public ChessBoardViewModel()
     {
         InitializeBoard();
         LoadMiddlegamePosition();
+        UpdateGamesBankStatus();
     }
 
     private void InitializeBoard()
@@ -187,11 +195,38 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     public void LoadNewPosition()
     {
-        // Load a random middlegame position
-        var position = MiddlegamePositionDatabase.GetRandomPosition();
-        _chessBoard = new ChessBoard(position.Fen);
-        UpdateBoard();
-        UpdateGameStatus();
+        try
+        {
+            // Try to load from imported games first
+            if (GameBank.ImportedGames.Count > 0)
+            {
+                var importedGame = GameBank.GetRandomMiddlegamePosition();
+                var fen = importedGame.GetMiddlegamePositionFen();
+                _chessBoard = new ChessBoard(fen);
+                
+                // Update game info to show it's from an imported game
+                GameIdText = $"Game: {importedGame.GetDisplayName()}";
+            }
+            else
+            {
+                // Fallback to predefined positions if no games imported
+                var position = MiddlegamePositionDatabase.GetRandomPosition();
+                _chessBoard = new ChessBoard(position.Fen);
+                GameIdText = $"Position: {position.Name}";
+            }
+            
+            UpdateBoard();
+            UpdateGameStatus();
+        }
+        catch (Exception ex)
+        {
+            // Fallback to predefined positions on error
+            var position = MiddlegamePositionDatabase.GetRandomPosition();
+            _chessBoard = new ChessBoard(position.Fen);
+            GameIdText = $"Position: {position.Name}";
+            UpdateBoard();
+            UpdateGameStatus();
+        }
     }
 
     public void ExportDebugState()
@@ -215,6 +250,52 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     public void CloseGameEndPopup()
     {
         ShowGameEndPopup = false;
+    }
+
+    public void ImportGamesFromFile(string filePath)
+    {
+        try
+        {
+            GameBank.ImportGamesFromFile(filePath);
+            GameStatusText = $"Imported {GameBank.ImportedGames.Count} games from file";
+            UpdateGamesBankStatus();
+        }
+        catch (Exception ex)
+        {
+            GameStatusText = $"Error importing games: {ex.Message}";
+        }
+    }
+
+    public void ImportGamesFromPgn(string pgnContent)
+    {
+        try
+        {
+            GameBank.ImportGamesFromPgn(pgnContent);
+            GameStatusText = $"Imported {GameBank.ImportedGames.Count} games from PGN";
+            UpdateGamesBankStatus();
+        }
+        catch (Exception ex)
+        {
+            GameStatusText = $"Error importing games: {ex.Message}";
+        }
+    }
+
+    public int GetImportedGamesCount()
+    {
+        return GameBank.ImportedGames.Count;
+    }
+
+    public void ClearImportedGames()
+    {
+        GameBank.ClearGames();
+        GameStatusText = "Imported games cleared";
+        UpdateGamesBankStatus();
+    }
+
+    private void UpdateGamesBankStatus()
+    {
+        var count = GetImportedGamesCount();
+        GamesBankStatus = count > 0 ? $"Games loaded: {count}" : "No games imported";
     }
 
     public void GoToFirstMove()
