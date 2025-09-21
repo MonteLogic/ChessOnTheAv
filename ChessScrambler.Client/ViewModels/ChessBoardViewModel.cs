@@ -162,6 +162,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     public ChessBoardViewModel()
     {
         InitializeBoard();
+        LoadSampleGames();
         LoadMiddlegamePosition();
         UpdateGamesBankStatus();
     }
@@ -184,6 +185,60 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         }
     }
 
+    private void LoadSampleGames()
+    {
+        try
+        {
+            // Try multiple possible locations for the sample games file
+            var possiblePaths = new[]
+            {
+                System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sample_games.pgn"),
+                System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "sample_games.pgn"),
+                "sample_games.pgn"
+            };
+
+            string? sampleGamesPath = null;
+            foreach (var path in possiblePaths)
+            {
+                if (System.IO.File.Exists(path))
+                {
+                    sampleGamesPath = path;
+                    break;
+                }
+            }
+
+            if (sampleGamesPath != null)
+            {
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Loading sample games from: {sampleGamesPath}");
+                }
+                
+                GameBank.ImportGamesFromFile(sampleGamesPath);
+                var count = GameBank.GetImportedGamesCount();
+                
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Successfully loaded {count} sample games");
+                }
+            }
+            else
+            {
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Sample games file not found in any of the expected locations");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Error loading sample games: {ex.Message}");
+            }
+        }
+    }
+
     public void LoadMiddlegamePosition()
     {
         // Load a typical middlegame position
@@ -195,7 +250,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     public void LoadNewPosition()
     {
-        if (Program.EnableGameLogging)
+        if (Program.EnableGameLogging || Program.EnableFullLogging)
         {
             Console.WriteLine("[GAME] LoadNewPosition called");
         }
@@ -203,10 +258,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         try
         {
             var importedGamesCount = GameBank.GetImportedGamesCount();
-            if (Program.EnableGameLogging)
-            {
-                Console.WriteLine($"[GAME] Imported games count: {importedGamesCount}");
-            }
+            Console.WriteLine($"[UI] LoadNewPosition - Imported games count: {importedGamesCount}");
             
             // Try to load from imported games first
             if (importedGamesCount > 0)
@@ -231,17 +283,18 @@ public class ChessBoardViewModel : INotifyPropertyChanged
                 
                 _chessBoard = new ChessBoard(fen);
                 
-                // Update game info to show it's from an imported game
-                GameIdText = $"Game: {importedGame.GetDisplayName()}";
-                
-                if (Program.EnableGameLogging)
-                {
-                    Console.WriteLine($"[GAME] Successfully loaded imported game position");
-                }
+                   // Update game info to show it's from an imported game
+                   GameIdText = $"Game: {importedGame.GetDisplayName()}";
+                   
+                   if (Program.EnableGameLogging || Program.EnableFullLogging)
+                   {
+                       Console.WriteLine($"[GAME] Successfully loaded imported game position");
+                       Console.WriteLine($"[GAME] Current Game ID: {GameIdText}");
+                   }
             }
             else
             {
-                if (Program.EnableGameLogging)
+                if (Program.EnableGameLogging || Program.EnableFullLogging)
                 {
                     Console.WriteLine("[GAME] No imported games, using predefined positions");
                 }
@@ -254,19 +307,20 @@ public class ChessBoardViewModel : INotifyPropertyChanged
                     Console.WriteLine($"[GAME] Position FEN: {position.Fen}");
                 }
                 
-                _chessBoard = new ChessBoard(position.Fen);
-                GameIdText = $"Position: {position.Name}";
-                
-                if (Program.EnableGameLogging)
-                {
-                    Console.WriteLine($"[GAME] Successfully loaded predefined position");
-                }
+                   _chessBoard = new ChessBoard(position.Fen);
+                   GameIdText = $"Position: {position.Name}";
+                   
+                   if (Program.EnableGameLogging || Program.EnableFullLogging)
+                   {
+                       Console.WriteLine($"[GAME] Successfully loaded predefined position");
+                       Console.WriteLine($"[GAME] Current Game ID: {GameIdText}");
+                   }
             }
             
             UpdateBoard();
             UpdateGameStatus();
             
-            if (Program.EnableGameLogging)
+            if (Program.EnableGameLogging || Program.EnableFullLogging)
             {
                 Console.WriteLine("[GAME] LoadNewPosition completed successfully");
             }
@@ -293,9 +347,10 @@ public class ChessBoardViewModel : INotifyPropertyChanged
                 UpdateBoard();
                 UpdateGameStatus();
                 
-                if (Program.EnableGameLogging)
+                if (Program.EnableGameLogging || Program.EnableFullLogging)
                 {
                     Console.WriteLine("[GAME] Fallback completed successfully");
+                    Console.WriteLine($"[GAME] Current Game ID: {GameIdText}");
                 }
             }
             catch (Exception fallbackEx)
@@ -335,36 +390,30 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     public void ImportGamesFromFile(string filePath)
     {
-        if (Program.EnableGameLogging)
-        {
-            Console.WriteLine($"[DEBUG] ImportGamesFromFile called with path: {filePath}");
-        }
+        Console.WriteLine($"[UI] ImportGamesFromFile called with path: {filePath}");
         
         try
         {
-            if (Program.EnableGameLogging)
-            {
-                Console.WriteLine($"[DEBUG] File exists: {System.IO.File.Exists(filePath)}");
-            }
+            Console.WriteLine($"[UI] File exists: {System.IO.File.Exists(filePath)}");
+            
+            // Clear existing games first
+            GameBank.ClearGames();
+            Console.WriteLine($"[UI] Cleared existing games, count: {GameBank.GetImportedGamesCount()}");
             
             GameBank.ImportGamesFromFile(filePath);
             var count = GameBank.GetImportedGamesCount();
+            Console.WriteLine($"[UI] Import completed, total games: {count}");
+            
             GameStatusText = $"Imported {count} games from file";
-            
-            if (Program.EnableGameLogging)
-            {
-                Console.WriteLine($"[DEBUG] Import completed, total games: {count}");
-            }
-            
             UpdateGamesBankStatus();
+            
+            Console.WriteLine($"[UI] GamesBankStatus updated: {GamesBankStatus}");
         }
         catch (Exception ex)
         {
-            if (Program.EnableGameLogging)
-            {
-                Console.WriteLine($"[DEBUG] Error importing games: {ex.Message}");
-                Console.WriteLine($"[DEBUG] Stack trace: {ex.StackTrace}");
-            }
+            Console.WriteLine($"[UI] Error importing games: {ex.Message}");
+            Console.WriteLine($"[UI] Stack trace: {ex.StackTrace}");
+            
             GameStatusText = $"Error importing games: {ex.Message}";
         }
     }

@@ -213,29 +213,61 @@ namespace ChessScrambler.Client.Models
             var currentGame = new List<string>();
             bool inGame = false;
 
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] SplitPgnIntoGames: Processing {lines.Length} lines");
+            }
+
             foreach (var line in lines)
             {
                 var trimmedLine = line.Trim();
                 
                 if (trimmedLine.StartsWith("["))
                 {
-                    if (inGame)
+                    // If we're already in a game and encounter a new Event tag, finish the current game
+                    if (inGame && currentGame.Count > 0 && trimmedLine.StartsWith("[Event"))
                     {
+                        if (Program.EnableGameLogging)
+                        {
+                            Console.WriteLine($"[GAME] Finishing game with {currentGame.Count} lines");
+                        }
                         games.Add(string.Join("\n", currentGame));
                         currentGame.Clear();
                     }
-                    inGame = true;
+                    
+                    if (!inGame)
+                    {
+                        inGame = true;
+                    }
+                    
                     currentGame.Add(trimmedLine);
+                    if (Program.EnableGameLogging)
+                    {
+                        Console.WriteLine($"[GAME] Adding tag to current game: {trimmedLine}");
+                    }
                 }
                 else if (inGame && !string.IsNullOrWhiteSpace(trimmedLine))
                 {
                     currentGame.Add(trimmedLine);
+                    if (Program.EnableGameLogging)
+                    {
+                        Console.WriteLine($"[GAME] Adding move line to current game: {trimmedLine.Substring(0, Math.Min(50, trimmedLine.Length))}...");
+                    }
                 }
             }
 
             if (inGame && currentGame.Count > 0)
             {
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Finishing final game with {currentGame.Count} lines");
+                }
                 games.Add(string.Join("\n", currentGame));
+            }
+
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] SplitPgnIntoGames: Created {games.Count} game blocks");
             }
 
             return games;
@@ -255,10 +287,27 @@ namespace ChessScrambler.Client.Models
             {
                 if (line.StartsWith("["))
                 {
+                    if (Program.EnableGameLogging)
+                    {
+                        Console.WriteLine($"[GAME] Parsing tag line: {line}");
+                    }
                     var match = Regex.Match(line, @"\[(\w+)\s+""([^""]+)""\]");
                     if (match.Success)
                     {
-                        tags[match.Groups[1].Value] = match.Groups[2].Value;
+                        var key = match.Groups[1].Value;
+                        var value = match.Groups[2].Value;
+                        tags[key] = value;
+                        if (Program.EnableGameLogging)
+                        {
+                            Console.WriteLine($"[GAME] Parsed tag: {key} = {value}");
+                        }
+                    }
+                    else
+                    {
+                        if (Program.EnableGameLogging)
+                        {
+                            Console.WriteLine($"[GAME] Failed to parse tag line: {line}");
+                        }
                     }
                 }
                 else

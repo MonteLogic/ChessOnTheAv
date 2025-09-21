@@ -221,7 +221,7 @@
                                  Background="Transparent"
                                  BorderThickness="0"
                                  Padding="0"
-                                 Text="• Click on a piece to select it&#x0a;• Click on a highlighted square to move&#x0a;• Practice middlegame tactics and strategy&#x0a;• Look for tactical opportunities&#x0a;• Plan your moves carefully"
+                                 Text="• Click on a piece to select it&#x0A;• Click on a highlighted square to move&#x0A;• Practice middlegame tactics and strategy&#x0A;• Look for tactical opportunities&#x0A;• Plan your moves carefully"
                                  GotFocus="Instructions_GotFocus"
                                  LostFocus="Instructions_LostFocus"
                                  KeyDown="Instructions_KeyDown"/>
