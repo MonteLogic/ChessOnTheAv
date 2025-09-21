@@ -7,6 +7,7 @@ class Program
 {
     public static bool EnableUILogging { get; private set; } = true;
     public static bool EnableGameLogging { get; private set; } = true;
+    public static bool EnableFullLogging { get; private set; } = false;
 
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
@@ -15,6 +16,14 @@ class Program
     public static void Main(string[] args)
     {
         ParseCommandLineArgs(args);
+        
+        // Check if we should run console test instead of GUI
+        if (args.Length > 0 && args[0] == "--quick-test")
+        {
+            Console.WriteLine("Test functionality removed. Use the GUI to import and test games.");
+            return;
+        }
+        
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
@@ -39,6 +48,12 @@ class Program
                 case "-go":
                     EnableUILogging = false;
                     break;
+                case "--full-logs":
+                case "-fl":
+                    EnableUILogging = true;
+                    EnableGameLogging = true;
+                    EnableFullLogging = true;
+                    break;
                 case "--help":
                 case "-h":
                     ShowHelp();
@@ -59,11 +74,14 @@ class Program
         Console.WriteLine("  --no-game-logging, --no-game Disable game event logging");
         Console.WriteLine("  --ui-only                    Enable only UI logging");
         Console.WriteLine("  --game-only, -go             Enable only game logging");
+        Console.WriteLine("  --full-logs, -fl             Enable all logging (UI + Game + Debug)");
         Console.WriteLine("  --help, -h                   Show this help message");
         Console.WriteLine();
         Console.WriteLine("Examples:");
         Console.WriteLine("  ChessScrambler.Client --game-only    # Only log game events");
         Console.WriteLine("  ChessScrambler.Client -go            # Only log game events (short form)");
+        Console.WriteLine("  ChessScrambler.Client --full-logs    # Enable all logging");
+        Console.WriteLine("  ChessScrambler.Client -fl            # Enable all logging (short form)");
         Console.WriteLine("  ChessScrambler.Client --no-ui        # Disable UI logging");
     }
 

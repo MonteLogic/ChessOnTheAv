@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using ChessScrambler.Client.Models;
 
 namespace ChessScrambler.Client.ViewModels;
@@ -67,6 +68,9 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     private string _moveHistoryText;
     private bool _isGameOver;
     private string _gameStatusText;
+    private string _whitePlayerText;
+    private string _blackPlayerText;
+    private List<string> _currentGameMoves;
     private bool _showGameEndPopup;
     private string _gameEndMessage;
     private string _gameIdText;
@@ -74,6 +78,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     private bool _canGoForward;
     private string _moveNavigationText;
     private string _gamesBankStatus;
+    private string _currentFenPosition;
 
     public ObservableCollection<SquareViewModel> Squares { get; } = new ObservableCollection<SquareViewModel>();
 
@@ -115,6 +120,18 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     {
         get => _gameStatusText;
         set => SetProperty(ref _gameStatusText, value);
+    }
+
+    public string WhitePlayerText
+    {
+        get => _whitePlayerText;
+        set => SetProperty(ref _whitePlayerText, value);
+    }
+
+    public string BlackPlayerText
+    {
+        get => _blackPlayerText;
+        set => SetProperty(ref _blackPlayerText, value);
     }
 
     public bool ShowGameEndPopup
@@ -159,9 +176,19 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         set => SetProperty(ref _gamesBankStatus, value);
     }
 
+    public string CurrentFenPosition
+    {
+        get => _currentFenPosition;
+        set => SetProperty(ref _currentFenPosition, value);
+    }
+
     public ChessBoardViewModel()
     {
+        _whitePlayerText = "White: COTA Player 1";
+        _blackPlayerText = "Black: COTA Player 2";
+        _currentGameMoves = new List<string>();
         InitializeBoard();
+        LoadSampleGames();
         LoadMiddlegamePosition();
         UpdateGamesBankStatus();
     }
@@ -184,6 +211,60 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         }
     }
 
+    private void LoadSampleGames()
+    {
+        try
+        {
+            // Try multiple possible locations for the sample games file
+            var possiblePaths = new[]
+            {
+                System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sample_games.pgn"),
+                System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "sample_games.pgn"),
+                "sample_games.pgn"
+            };
+
+            string? sampleGamesPath = null;
+            foreach (var path in possiblePaths)
+            {
+                if (System.IO.File.Exists(path))
+                {
+                    sampleGamesPath = path;
+                    break;
+                }
+            }
+
+            if (sampleGamesPath != null)
+            {
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Loading sample games from: {sampleGamesPath}");
+                }
+                
+                GameBank.ImportGamesFromFile(sampleGamesPath);
+                var count = GameBank.GetImportedGamesCount();
+                
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Successfully loaded {count} sample games");
+                }
+            }
+            else
+            {
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Sample games file not found in any of the expected locations");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Error loading sample games: {ex.Message}");
+            }
+        }
+    }
+
     public void LoadMiddlegamePosition()
     {
         // Load a typical middlegame position
@@ -193,39 +274,131 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         UpdateGameStatus();
     }
 
-    public void LoadNewPosition()
+    public async Task LoadNewPosition()
     {
+        if (Program.EnableGameLogging || Program.EnableFullLogging)
+        {
+            Console.WriteLine("[GAME] LoadNewPosition called");
+        }
+        
         try
         {
+            var importedGamesCount = GameBank.GetImportedGamesCount();
+            Console.WriteLine($"[UI] LoadNewPosition - Imported games count: {importedGamesCount}");
+            
             // Try to load from imported games first
-            if (GameBank.ImportedGames.Count > 0)
+            if (importedGamesCount > 0)
             {
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine("[GAME] Loading from imported games");
+                }
+                
                 var importedGame = GameBank.GetRandomMiddlegamePosition();
-                var fen = importedGame.GetMiddlegamePositionFen();
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Selected imported game: {importedGame.GetDisplayName()}");
+                    Console.WriteLine($"[GAME] Game has {importedGame.Moves.Count} moves");
+                }
+                
+                // Run the heavy move replay operation on a background thread
+                var fen = await Task.Run(() => importedGame.GetMiddlegamePositionFen());
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Generated FEN: {fen}");
+                }
+                
                 _chessBoard = new ChessBoard(fen);
                 
                 // Update game info to show it's from an imported game
                 GameIdText = $"Game: {importedGame.GetDisplayName()}";
+                WhitePlayerText = $"White: {importedGame.WhitePlayer}";
+                BlackPlayerText = $"Black: {importedGame.BlackPlayer}";
+                
+                // Store the current game's moves for move history
+                _currentGameMoves = importedGame.Moves;
+                UpdateMoveHistory();
+                
+                if (Program.EnableGameLogging || Program.EnableFullLogging)
+                {
+                    Console.WriteLine($"[GAME] Successfully loaded imported game position");
+                    Console.WriteLine($"[GAME] Current Game ID: {GameIdText}");
+                }
             }
             else
             {
+                if (Program.EnableGameLogging || Program.EnableFullLogging)
+                {
+                    Console.WriteLine("[GAME] No imported games, using predefined positions");
+                }
+                
                 // Fallback to predefined positions if no games imported
                 var position = MiddlegamePositionDatabase.GetRandomPosition();
-                _chessBoard = new ChessBoard(position.Fen);
-                GameIdText = $"Position: {position.Name}";
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Selected predefined position: {position.Name}");
+                    Console.WriteLine($"[GAME] Position FEN: {position.Fen}");
+                }
+                
+                   _chessBoard = new ChessBoard(position.Fen);
+                   GameIdText = $"Position: {position.Name}";
+                   WhitePlayerText = "White: COTA Player 1";
+                   BlackPlayerText = "Black: COTA Player 2";
+                   _currentGameMoves = new List<string>();
+                   UpdateMoveHistory();
+                   
+                   if (Program.EnableGameLogging || Program.EnableFullLogging)
+                   {
+                       Console.WriteLine($"[GAME] Successfully loaded predefined position");
+                       Console.WriteLine($"[GAME] Current Game ID: {GameIdText}");
+                   }
             }
             
             UpdateBoard();
             UpdateGameStatus();
+            
+            if (Program.EnableGameLogging || Program.EnableFullLogging)
+            {
+                Console.WriteLine("[GAME] LoadNewPosition completed successfully");
+            }
         }
         catch (Exception ex)
         {
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Error in LoadNewPosition: {ex.Message}");
+                Console.WriteLine($"[GAME] Stack trace: {ex.StackTrace}");
+            }
+            
             // Fallback to predefined positions on error
-            var position = MiddlegamePositionDatabase.GetRandomPosition();
-            _chessBoard = new ChessBoard(position.Fen);
-            GameIdText = $"Position: {position.Name}";
-            UpdateBoard();
-            UpdateGameStatus();
+            try
+            {
+                var position = MiddlegamePositionDatabase.GetRandomPosition();
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Fallback to predefined position: {position.Name}");
+                }
+                
+                _chessBoard = new ChessBoard(position.Fen);
+                GameIdText = $"Position: {position.Name}";
+                UpdateBoard();
+                UpdateGameStatus();
+                
+                if (Program.EnableGameLogging || Program.EnableFullLogging)
+                {
+                    Console.WriteLine("[GAME] Fallback completed successfully");
+                    Console.WriteLine($"[GAME] Current Game ID: {GameIdText}");
+                }
+            }
+            catch (Exception fallbackEx)
+            {
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Fallback also failed: {fallbackEx.Message}");
+                }
+                
+                GameStatusText = $"Error loading position: {ex.Message}";
+            }
         }
     }
 
@@ -254,14 +427,30 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     public void ImportGamesFromFile(string filePath)
     {
+        Console.WriteLine($"[UI] ImportGamesFromFile called with path: {filePath}");
+        
         try
         {
+            Console.WriteLine($"[UI] File exists: {System.IO.File.Exists(filePath)}");
+            
+            // Clear existing games first
+            GameBank.ClearGames();
+            Console.WriteLine($"[UI] Cleared existing games, count: {GameBank.GetImportedGamesCount()}");
+            
             GameBank.ImportGamesFromFile(filePath);
-            GameStatusText = $"Imported {GameBank.ImportedGames.Count} games from file";
+            var count = GameBank.GetImportedGamesCount();
+            Console.WriteLine($"[UI] Import completed, total games: {count}");
+            
+            GameStatusText = $"Imported {count} games from file";
             UpdateGamesBankStatus();
+            
+            Console.WriteLine($"[UI] GamesBankStatus updated: {GamesBankStatus}");
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[UI] Error importing games: {ex.Message}");
+            Console.WriteLine($"[UI] Stack trace: {ex.StackTrace}");
+            
             GameStatusText = $"Error importing games: {ex.Message}";
         }
     }
@@ -282,7 +471,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     public int GetImportedGamesCount()
     {
-        return GameBank.ImportedGames.Count;
+        return GameBank.GetImportedGamesCount();
     }
 
     public void ClearImportedGames()
@@ -291,6 +480,67 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         GameStatusText = "Imported games cleared";
         UpdateGamesBankStatus();
     }
+
+    public string GetCurrentGamePgn()
+    {
+        if (_chessBoard == null) return "";
+
+        var pgn = new System.Text.StringBuilder();
+        
+        // Add PGN headers
+        pgn.AppendLine("[Event \"ChessScrambler Game\"]");
+        pgn.AppendLine($"[Site \"ChessScrambler\"]");
+        pgn.AppendLine($"[Date \"{DateTime.Now:yyyy.MM.dd}\"]");
+        pgn.AppendLine("[Round \"1\"]");
+        pgn.AppendLine("[White \"Player\"]");
+        pgn.AppendLine("[Black \"Player\"]");
+        pgn.AppendLine($"[Result \"{_chessBoard.Game.GameResult}\"]");
+        pgn.AppendLine($"[FEN \"{_chessBoard.Game.InitialFen}\"]");
+        pgn.AppendLine();
+
+        // Add moves
+        var moves = _chessBoard.Game.GetMovesUpToCurrent();
+        var moveText = new List<string>();
+        
+        for (int i = 0; i < moves.Count; i++)
+        {
+            if (i % 2 == 0)
+            {
+                // White move - add move number
+                var moveNumber = (i / 2) + 1;
+                moveText.Add($"{moveNumber}. {moves[i].GetNotation()}");
+            }
+            else
+            {
+                // Black move - just add the move
+                moveText.Add(moves[i].GetNotation());
+            }
+        }
+        
+        pgn.AppendLine(string.Join(" ", moveText));
+        pgn.AppendLine($" {_chessBoard.Game.GameResult}");
+        
+        return pgn.ToString();
+    }
+
+    public void ExportCurrentGamePgn()
+    {
+        try
+        {
+            var pgnContent = GetCurrentGamePgn();
+            var fileName = $"chess_game_{DateTime.Now:yyyyMMdd_HHmmss}.pgn";
+            var filePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
+            
+            System.IO.File.WriteAllText(filePath, pgnContent);
+            
+            GameStatusText = $"Game exported to: {fileName}";
+        }
+        catch (Exception ex)
+        {
+            GameStatusText = $"Error exporting game: {ex.Message}";
+        }
+    }
+
 
     private void UpdateGamesBankStatus()
     {
@@ -376,6 +626,9 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         // Use the game's move history text which shows moves up to current position
         MoveHistoryText = _chessBoard.Game.GetMoveHistoryText();
         
+        // Update the current FEN position
+        CurrentFenPosition = _chessBoard.GetFen();
+        
         var wasGameOver = IsGameOver;
         IsGameOver = _chessBoard.IsGameOver;
         
@@ -407,6 +660,36 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         }
         
         UpdateNavigationState();
+    }
+
+    private void UpdateMoveHistory()
+    {
+        if (_currentGameMoves != null && _currentGameMoves.Count > 0)
+        {
+            // Format the moves in a readable way
+            var moveHistory = new List<string>();
+            for (int i = 0; i < _currentGameMoves.Count; i += 2)
+            {
+                var moveNumber = (i / 2) + 1;
+                var whiteMove = _currentGameMoves[i];
+                var blackMove = i + 1 < _currentGameMoves.Count ? _currentGameMoves[i + 1] : "";
+                
+                if (!string.IsNullOrEmpty(blackMove))
+                {
+                    moveHistory.Add($"{moveNumber}. {whiteMove} {blackMove}");
+                }
+                else
+                {
+                    moveHistory.Add($"{moveNumber}. {whiteMove}");
+                }
+            }
+            
+            MoveHistoryText = string.Join("\n", moveHistory);
+        }
+        else
+        {
+            MoveHistoryText = "No moves available";
+        }
     }
 
     private void UpdateNavigationState()

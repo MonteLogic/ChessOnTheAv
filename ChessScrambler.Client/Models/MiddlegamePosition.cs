@@ -124,7 +124,7 @@ public class MiddlegamePositionDatabase
 
     public static MiddlegamePosition GetRandomPosition()
     {
-        var random = new Random();
+        var random = new Random(Guid.NewGuid().GetHashCode());
         return Positions[random.Next(Positions.Length)];
     }
 
