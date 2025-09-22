@@ -184,8 +184,8 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     public ChessBoardViewModel()
     {
-        _whitePlayerText = "White: COTA Player 1";
-        _blackPlayerText = "Black: COTA Player 2";
+        _whitePlayerText = "White: Loading...";
+        _blackPlayerText = "Black: Loading...";
         _currentGameMoves = new List<string>();
         InitializeBoard();
         LoadSampleGames();
@@ -267,12 +267,49 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     public void LoadMiddlegamePosition()
     {
-        // Load a typical middlegame position
-        var position = MiddlegamePositionDatabase.GetPositionById("pos001");
-        _chessBoard = new ChessBoard(position.Fen);
-        
-        // Generate move history for this position
-        GenerateMoveHistoryForPosition(position);
+        // Try to load the COTA game from imported games first
+        var cotaGame = GameBank.GetCotaGame();
+        if (cotaGame != null)
+        {
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Loading COTA game from PGN: {cotaGame.GetDisplayName()}");
+            }
+            
+            // Get the middlegame position from the COTA game
+            var fen = cotaGame.GetMiddlegamePositionFen();
+            _chessBoard = new ChessBoard(fen);
+            
+            // Store the current game's moves for move history
+            _currentGameMoves = cotaGame.Moves;
+            
+            // Update game info to show it's from the COTA game
+            GameIdText = $"Game: {cotaGame.GetDisplayName()}";
+            WhitePlayerText = $"White: {cotaGame.WhitePlayer}";
+            BlackPlayerText = $"Black: {cotaGame.BlackPlayer}";
+            
+            // Update move history display
+            UpdateMoveHistory();
+            
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Successfully loaded COTA game with {cotaGame.Moves.Count} moves");
+            }
+        }
+        else
+        {
+            // Fallback to the old method if COTA game not found
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine("[GAME] COTA game not found, falling back to random position generation");
+            }
+            
+            var position = MiddlegamePositionDatabase.GetPositionById("pos001");
+            _chessBoard = new ChessBoard(position.Fen);
+            
+            // Generate move history for this position
+            GenerateMoveHistoryForPosition(position);
+        }
         
         UpdateBoard();
         UpdateGameStatus();
