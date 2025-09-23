@@ -34,14 +34,14 @@ public class MiddlegamePositionDatabase
     {
         new MiddlegamePosition(
             "pos001",
-            "Classic King's Indian Attack",
-            "A typical middlegame position from the King's Indian Attack. White has a strong center and good piece coordination.",
-            "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 4 4",
-            "King's Indian Attack",
-            3,
-            new[] { "e4-e5", "Nf3-g5", "Bc4-b3" },
-            new[] { "Center Control", "Piece Activity", "King Safety" },
-            "Look for ways to increase piece activity and control the center."
+            "COTA - Complex Tactical Middlegame",
+            "A sophisticated middlegame position from a high-level game. Both sides have active pieces with multiple tactical possibilities and strategic plans. White has a slight space advantage but Black has good counterplay opportunities.",
+            "r1b1r1k1/ppq2ppp/2n1pn2/2pp4/2P1P3/2N1BN2/PPQ1BPPP/R4RK1 w - - 0 12",
+            "Complex Tactical Middlegame",
+            5,
+            new[] { "Qc2-d3", "Bf3-g4", "f2-f4", "Rf1-d1", "Nc3-d5" },
+            new[] { "Tactical Awareness", "King Safety", "Piece Coordination", "Pawn Structure", "Counterplay" },
+            "This position requires careful calculation. Look for tactical shots while maintaining piece coordination. Both sides have attacking chances."
         ),
         new MiddlegamePosition(
             "pos002",
