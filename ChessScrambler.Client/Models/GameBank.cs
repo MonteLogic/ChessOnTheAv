@@ -151,6 +151,16 @@ namespace ChessScrambler.Client.Models
             }
         }
 
+        public static ImportedGame? GetCotaGame()
+        {
+            lock (_lock)
+            {
+                return _importedGames.FirstOrDefault(g => 
+                    g.WhitePlayer.Contains("COTA Player 1", StringComparison.OrdinalIgnoreCase) ||
+                    g.BlackPlayer.Contains("COTA Player 1", StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
         private static List<ImportedGame> ParsePgnContent(string pgnContent)
         {
             if (Program.EnableGameLogging)

@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using System;
+using ChessScrambler.Client.Models;
 
 namespace ChessScrambler.Client;
 
@@ -24,7 +25,72 @@ class Program
             return;
         }
         
+        // Check if we should test COTA game loading
+        if (args.Length > 0 && args[0] == "--test-cota")
+        {
+            TestCotaGameLoading();
+            return;
+        }
+        
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    }
+
+    private static void TestCotaGameLoading()
+    {
+        Console.WriteLine("Testing COTA Game Loading...");
+        
+        try
+        {
+            // Load sample games from PGN file
+            var sampleGamesPath = "sample_games.pgn";
+            if (System.IO.File.Exists(sampleGamesPath))
+            {
+                Console.WriteLine($"Loading games from: {sampleGamesPath}");
+                GameBank.ImportGamesFromFile(sampleGamesPath);
+                
+                var totalGames = GameBank.GetImportedGamesCount();
+                Console.WriteLine($"Total games loaded: {totalGames}");
+                
+                // Try to get the COTA game
+                var cotaGame = GameBank.GetCotaGame();
+                if (cotaGame != null)
+                {
+                    Console.WriteLine($"COTA Game found!");
+                    Console.WriteLine($"  Display Name: {cotaGame.GetDisplayName()}");
+                    Console.WriteLine($"  White Player: {cotaGame.WhitePlayer}");
+                    Console.WriteLine($"  Black Player: {cotaGame.BlackPlayer}");
+                    Console.WriteLine($"  Number of moves: {cotaGame.Moves.Count}");
+                    Console.WriteLine($"  Opening: {cotaGame.Opening}");
+                    
+                    // Test getting middlegame position
+                    var fen = cotaGame.GetMiddlegamePositionFen();
+                    Console.WriteLine($"  Middlegame FEN: {fen}");
+                    
+                    Console.WriteLine("COTA Game test completed successfully!");
+                }
+                else
+                {
+                    Console.WriteLine("COTA Game not found!");
+                    
+                    // List all games to see what we have
+                    var allGames = GameBank.ImportedGames;
+                    Console.WriteLine("Available games:");
+                    foreach (var game in allGames)
+                    {
+                        Console.WriteLine($"  - {game.GetDisplayName()} (White: {game.WhitePlayer}, Black: {game.BlackPlayer})");
+                    }
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Sample games file not found: {sampleGamesPath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
     }
 
     private static void ParseCommandLineArgs(string[] args)
