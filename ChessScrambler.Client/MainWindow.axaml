@@ -13,6 +13,7 @@
     
     <Window.Resources>
         <converters:SquareColorConverter x:Key="SquareColorConverter"/>
+        <converters:PieceColorConverter x:Key="PieceColorConverter"/>
     </Window.Resources>
 
     <Design.DataContext>
@@ -27,24 +28,42 @@
 
         <Border Grid.Column="0" Background="#2C2C2C" Padding="20">
             <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-                    <TextBlock Text="a" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="b" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="c" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="d" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="e" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="f" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="g" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="h" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
+                <!-- Column letters (a-h) at the top -->
+                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                    <TextBlock Text="a" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="b" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="c" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="d" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="e" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="f" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="g" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="h" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
                 </StackPanel>
 
-                <Grid Grid.Row="1" Width="400" Height="400" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <!-- Row numbers (8-1) on the left side -->
+                <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <TextBlock Text="8" Foreground="White" FontSize="18" FontWeight="Bold" Height="60" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Text="7" Foreground="White" FontSize="18" FontWeight="Bold" Height="60" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Text="6" Foreground="White" FontSize="18" FontWeight="Bold" Height="60" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Text="5" Foreground="White" FontSize="18" FontWeight="Bold" Height="60" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Text="4" Foreground="White" FontSize="18" FontWeight="Bold" Height="60" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Text="3" Foreground="White" FontSize="18" FontWeight="Bold" Height="60" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Text="2" Foreground="White" FontSize="18" FontWeight="Bold" Height="60" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <TextBlock Text="1" Foreground="White" FontSize="18" FontWeight="Bold" Height="60" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Chess board - much larger -->
+                <Grid Grid.Row="1" Grid.Column="1" Width="480" Height="480" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <ItemsControl ItemsSource="{Binding Squares}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -53,7 +72,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:SquareViewModel">
-                                <Border Width="50" Height="50" 
+                                <Border Width="60" Height="60" 
                                         BorderBrush="Black" BorderThickness="1"
                                         PointerPressed="Square_PointerPressed">
                                     <Border.Background>
@@ -68,36 +87,35 @@
                                         </SolidColorBrush>
                                     </Border.Background>
                                     <TextBlock Text="{Binding Piece.Symbol}" 
-                                               FontSize="32" 
+                                               FontSize="40" 
+                                               FontWeight="Bold"
                                                HorizontalAlignment="Center" 
-                                               VerticalAlignment="Center"
-                                               Foreground="Black"/>
+                                               VerticalAlignment="Center">
+                                        <TextBlock.Foreground>
+                                            <Binding Path="Piece.Color" Converter="{StaticResource PieceColorConverter}"/>
+                                        </TextBlock.Foreground>
+                                        <TextBlock.Effect>
+                                            <DropShadowEffect Color="Black" 
+                                                              BlurRadius="2" 
+                                                              Opacity="0.5"/>
+                                        </TextBlock.Effect>
+                                    </TextBlock>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </Grid>
 
-                <StackPanel Grid.Row="1" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,10,0">
-                    <TextBlock Text="8" Foreground="White" FontSize="16" FontWeight="Bold" Height="50" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    <TextBlock Text="7" Foreground="White" FontSize="16" FontWeight="Bold" Height="50" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    <TextBlock Text="6" Foreground="White" FontSize="16" FontWeight="Bold" Height="50" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    <TextBlock Text="5" Foreground="White" FontSize="16" FontWeight="Bold" Height="50" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    <TextBlock Text="4" Foreground="White" FontSize="16" FontWeight="Bold" Height="50" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    <TextBlock Text="3" Foreground="White" FontSize="16" FontWeight="Bold" Height="50" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    <TextBlock Text="2" Foreground="White" FontSize="16" FontWeight="Bold" Height="50" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    <TextBlock Text="1" Foreground="White" FontSize="16" FontWeight="Bold" Height="50" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                </StackPanel>
-
-                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
-                    <TextBlock Text="a" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="b" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="c" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="d" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="e" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="f" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="g" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
-                    <TextBlock Text="h" Foreground="White" FontSize="16" FontWeight="Bold" Width="50" HorizontalAlignment="Center"/>
+                <!-- Column letters (a-h) at the bottom -->
+                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                    <TextBlock Text="a" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="b" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="c" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="d" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="e" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="f" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="g" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
+                    <TextBlock Text="h" Foreground="White" FontSize="18" FontWeight="Bold" Width="60" HorizontalAlignment="Center"/>
                 </StackPanel>
             </Grid>
         </Border>
