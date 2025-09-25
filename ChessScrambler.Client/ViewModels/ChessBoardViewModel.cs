@@ -342,7 +342,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         _whitePlayerText = "White: Loading...";
         _blackPlayerText = "Black: Loading...";
         _currentGameMoves = new List<string>();
-        _appSettings = new AppSettings();
+        _appSettings = AppSettings.LoadSettings(); // Load saved settings
         InitializeBoard();
         LoadSampleGames();
         LoadMiddlegamePosition();

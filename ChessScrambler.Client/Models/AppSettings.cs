@@ -1,5 +1,9 @@
+using System;
 using System.ComponentModel;
+using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 
 namespace ChessScrambler.Client.Models;
 
@@ -16,6 +20,16 @@ public class AppSettings : INotifyPropertyChanged
     private int _windowWidth = 1400; // Default window width
     private int _windowHeight = 900; // Default window height
     private string _windowSizeMode = "Large"; // Window size mode
+
+    public AppSettings()
+    {
+        // Don't auto-save in constructor to avoid overwriting loaded settings
+    }
+
+    private static readonly string SettingsDirectory = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), 
+        ".local", "share", "ChessScrambler");
+    private static readonly string SettingsFilePath = Path.Combine(SettingsDirectory, "settings.json");
 
     /**
      * <summary>
@@ -262,6 +276,151 @@ public class AppSettings : INotifyPropertyChanged
         if (Equals(field, value)) return false;
         field = value;
         OnPropertyChanged(propertyName);
+        
+        // Auto-save settings when they change
+        SaveSettings();
+        
         return true;
+    }
+
+    /**
+     * <summary>
+     * Loads settings from the settings file.
+     * </summary>
+     * <returns>A new AppSettings instance with loaded values, or default values if loading fails.</returns>
+     */
+    public static AppSettings LoadSettings()
+    {
+        try
+        {
+            Console.WriteLine($"[SETTINGS] Attempting to load settings from: {SettingsFilePath}");
+            
+            if (File.Exists(SettingsFilePath))
+            {
+                Console.WriteLine("[SETTINGS] Settings file found, loading...");
+                var json = File.ReadAllText(SettingsFilePath);
+                
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                };
+                
+                var settings = JsonSerializer.Deserialize<AppSettings>(json, options);
+                if (settings != null)
+                {
+                    Console.WriteLine($"[SETTINGS] Settings loaded successfully - Board: {settings.BoardSize}px, Window: {settings.WindowWidth}x{settings.WindowHeight}, Mode: {settings.WindowSizeMode}");
+                    // Ensure settings are valid
+                    settings.ValidateSettings();
+                    return settings;
+                }
+            }
+            else
+            {
+                Console.WriteLine("[SETTINGS] Settings file not found, using defaults");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SETTINGS] Error loading settings: {ex.Message}");
+        }
+
+        // Return default settings if loading fails
+        var defaultSettings = new AppSettings();
+        Console.WriteLine("[SETTINGS] Using default settings");
+        // Save default settings for first-time users
+        defaultSettings.SaveSettings();
+        return defaultSettings;
+    }
+
+    /**
+     * <summary>
+     * Saves the current settings to the settings file.
+     * </summary>
+     */
+    public void SaveSettings()
+    {
+        try
+        {
+            Console.WriteLine($"[SETTINGS] Saving settings to: {SettingsFilePath}");
+            Console.WriteLine($"[SETTINGS] Current values - Board: {_boardSize}px, Window: {_windowWidth}x{_windowHeight}, Mode: {_windowSizeMode}");
+            
+            // Ensure the settings directory exists
+            Directory.CreateDirectory(SettingsDirectory);
+            Console.WriteLine($"[SETTINGS] Settings directory created/verified: {SettingsDirectory}");
+
+            // Serialize settings to JSON
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+
+            var json = JsonSerializer.Serialize(this, options);
+            File.WriteAllText(SettingsFilePath, json);
+            Console.WriteLine("[SETTINGS] Settings saved successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SETTINGS] Error saving settings: {ex.Message}");
+        }
+    }
+
+    /**
+     * <summary>
+     * Validates and corrects settings to ensure they are within acceptable ranges.
+     * </summary>
+     */
+    private void ValidateSettings()
+    {
+        // Validate board size
+        if (_boardSize < 320 || _boardSize > 800)
+        {
+            _boardSize = 480;
+        }
+
+        // Validate window size
+        if (_windowWidth < 1000 || _windowWidth > 2000)
+        {
+            _windowWidth = 1400;
+        }
+
+        if (_windowHeight < 700 || _windowHeight > 1500)
+        {
+            _windowHeight = 900;
+        }
+
+        // Validate window size mode
+        if (!AvailableWindowSizeModes.Contains(_windowSizeMode))
+        {
+            _windowSizeMode = "Large";
+        }
+
+        // Recalculate dependent values
+        SquareSize = _boardSize / 8;
+        PieceSize = (int)(SquareSize * 0.83);
+    }
+
+    /**
+     * <summary>
+     * Resets all settings to their default values.
+     * </summary>
+     */
+    public void ResetToDefaults()
+    {
+        _boardSize = 480;
+        _squareSize = 60;
+        _pieceSize = 50;
+        _windowWidth = 1400;
+        _windowHeight = 900;
+        _windowSizeMode = "Large";
+
+        OnPropertyChanged(nameof(BoardSize));
+        OnPropertyChanged(nameof(SquareSize));
+        OnPropertyChanged(nameof(PieceSize));
+        OnPropertyChanged(nameof(WindowWidth));
+        OnPropertyChanged(nameof(WindowHeight));
+        OnPropertyChanged(nameof(WindowSizeMode));
+
+        SaveSettings();
     }
 }
