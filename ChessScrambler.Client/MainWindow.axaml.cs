@@ -3,7 +3,9 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using ChessScrambler.Client.ViewModels;
+using ChessScrambler.Client.Models;
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -22,6 +24,12 @@ public partial class MainWindow : Window
         
         // Add UI event logging
         SetupUILogging();
+        
+        // Subscribe to settings changes for window resizing
+        if (_viewModel?.AppSettings != null)
+        {
+            _viewModel.AppSettings.PropertyChanged += OnAppSettingsChanged;
+        }
     }
 
     private void SetupUILogging()
@@ -60,6 +68,24 @@ public partial class MainWindow : Window
         if (Program.EnableUILogging)
         {
             Console.WriteLine($"[UI] {category}.{action}: {details}");
+        }
+    }
+
+    private void OnAppSettingsChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (sender is AppSettings settings)
+        {
+            if (e.PropertyName == nameof(AppSettings.WindowWidth) || e.PropertyName == nameof(AppSettings.WindowHeight))
+            {
+                // Resize the window when settings change
+                this.Width = settings.WindowWidth;
+                this.Height = settings.WindowHeight;
+                
+                // Center the window after resizing
+                this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                
+                LogUIEvent("Window", "Resized", $"Window resized to {settings.WindowWidth}x{settings.WindowHeight}");
+            }
         }
     }
 
@@ -261,6 +287,17 @@ public partial class MainWindow : Window
     {
         LogUIEvent("Button", "ExportCurrentGamePgn", "Export current game PGN button clicked");
         _viewModel?.ExportCurrentGamePgn();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        // Unsubscribe from settings changes
+        if (_viewModel?.AppSettings != null)
+        {
+            _viewModel.AppSettings.PropertyChanged -= OnAppSettingsChanged;
+        }
+        
+        base.OnClosed(e);
     }
 
 }

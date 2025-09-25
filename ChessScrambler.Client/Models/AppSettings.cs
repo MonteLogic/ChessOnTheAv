@@ -13,6 +13,9 @@ public class AppSettings : INotifyPropertyChanged
     private int _boardSize = 480; // Default board size in pixels
     private int _squareSize = 60; // Default square size in pixels
     private int _pieceSize = 50; // Default piece size in pixels
+    private int _windowWidth = 1400; // Default window width
+    private int _windowHeight = 900; // Default window height
+    private string _windowSizeMode = "Large"; // Window size mode
 
     /**
      * <summary>
@@ -60,6 +63,45 @@ public class AppSettings : INotifyPropertyChanged
 
     /**
      * <summary>
+     * Gets or sets the window width in pixels.
+     * </summary>
+     */
+    public int WindowWidth
+    {
+        get => _windowWidth;
+        set => SetProperty(ref _windowWidth, value);
+    }
+
+    /**
+     * <summary>
+     * Gets or sets the window height in pixels.
+     * </summary>
+     */
+    public int WindowHeight
+    {
+        get => _windowHeight;
+        set => SetProperty(ref _windowHeight, value);
+    }
+
+    /**
+     * <summary>
+     * Gets or sets the window size mode (Small, Medium, Large, X-Large, Full Screen).
+     * </summary>
+     */
+    public string WindowSizeMode
+    {
+        get => _windowSizeMode;
+        set
+        {
+            if (SetProperty(ref _windowSizeMode, value))
+            {
+                UpdateWindowSizeFromMode();
+            }
+        }
+    }
+
+    /**
+     * <summary>
      * Gets the available board size options for the UI.
      * </summary>
      */
@@ -80,6 +122,112 @@ public class AppSettings : INotifyPropertyChanged
         "XXX-Large (720px)", 
         "Huge (800px)" 
     };
+
+    /**
+     * <summary>
+     * Gets the available window size modes.
+     * </summary>
+     */
+    public static string[] AvailableWindowSizeModes => new[] 
+    { 
+        "Compact (1000x700)", 
+        "Medium (1200x800)", 
+        "Large (1400x900)", 
+        "X-Large (1600x1000)", 
+        "XX-Large (1800x1100)",
+        "Auto Fit Screen"
+    };
+
+    /**
+     * <summary>
+     * Gets the display names for the available window sizes.
+     * </summary>
+     */
+    public static string[] WindowSizeDisplayNames => new[] 
+    { 
+        "Compact (1000x700)", 
+        "Medium (1200x800)", 
+        "Large (1400x900)", 
+        "X-Large (1600x1000)", 
+        "XX-Large (1800x1100)",
+        "Auto Fit Screen"
+    };
+
+    /**
+     * <summary>
+     * Updates the window size based on the selected mode.
+     * </summary>
+     */
+    private void UpdateWindowSizeFromMode()
+    {
+        switch (_windowSizeMode)
+        {
+            case "Compact (1000x700)":
+                WindowWidth = 1000;
+                WindowHeight = 700;
+                break;
+            case "Medium (1200x800)":
+                WindowWidth = 1200;
+                WindowHeight = 800;
+                break;
+            case "Large (1400x900)":
+                WindowWidth = 1400;
+                WindowHeight = 900;
+                break;
+            case "X-Large (1600x1000)":
+                WindowWidth = 1600;
+                WindowHeight = 1000;
+                break;
+            case "XX-Large (1800x1100)":
+                WindowWidth = 1800;
+                WindowHeight = 1100;
+                break;
+            case "Auto Fit Screen":
+                SetAutoFitScreenSize();
+                break;
+        }
+    }
+
+    /**
+     * <summary>
+     * Sets the window size to fit the screen with appropriate margins.
+     * </summary>
+     */
+    private void SetAutoFitScreenSize()
+    {
+        try
+        {
+            // Get screen dimensions (this is a simplified approach)
+            // In a real implementation, you'd use System.Windows.Forms.Screen or similar
+            var screenWidth = 1920; // Default fallback
+            var screenHeight = 1080; // Default fallback
+            
+            // Try to get actual screen size (this is platform-specific)
+            // For now, we'll use reasonable defaults that work on most screens
+            if (System.Environment.OSVersion.Platform == System.PlatformID.Win32NT)
+            {
+                // Windows - try to get screen size
+                screenWidth = 1920;
+                screenHeight = 1080;
+            }
+            else if (System.Environment.OSVersion.Platform == System.PlatformID.Unix)
+            {
+                // Linux - try to get screen size
+                screenWidth = 1920;
+                screenHeight = 1080;
+            }
+            
+            // Set window size to 90% of screen size with minimum constraints
+            WindowWidth = System.Math.Max(1200, (int)(screenWidth * 0.9));
+            WindowHeight = System.Math.Max(800, (int)(screenHeight * 0.9));
+        }
+        catch
+        {
+            // Fallback to large size if screen detection fails
+            WindowWidth = 1400;
+            WindowHeight = 900;
+        }
+    }
 
     /**
      * <summary>

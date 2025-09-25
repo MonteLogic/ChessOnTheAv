@@ -5,17 +5,20 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:ChessScrambler.Client.ViewModels"
         xmlns:converters="using:ChessScrambler.Client.Converters"
-        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+        mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
         x:Class="ChessScrambler.Client.MainWindow"
         x:DataType="vm:ChessBoardViewModel"
         Title="Chess Middlegame Practicer"
-        MinWidth="1000" MinHeight="700">
+        MinWidth="1200" MinHeight="800"
+        Width="1400" Height="900"
+        WindowStartupLocation="CenterScreen">
     
     <Window.Resources>
         <converters:SquareColorConverter x:Key="SquareColorConverter"/>
         <converters:PieceColorConverter x:Key="PieceColorConverter"/>
         <converters:ChessPieceImageConverter x:Key="ChessPieceImageConverter"/>
         <converters:BoardSizeDisplayConverter x:Key="BoardSizeDisplayConverter"/>
+        <converters:WindowSizeDisplayConverter x:Key="WindowSizeDisplayConverter"/>
     </Window.Resources>
 
     <Design.DataContext>
@@ -193,23 +196,45 @@
 
                 <Border Background="#333333" Padding="10" CornerRadius="5">
                     <StackPanel>
-                        <TextBlock Text="Board Settings" Foreground="White" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="Board Size:" Foreground="White" FontSize="12"/>
-                            <ComboBox ItemsSource="{Binding AppSettings.AvailableBoardSizes}"
-                                      SelectedItem="{Binding AppSettings.BoardSize}"
-                                      Background="#2C2C2C"
-                                      Foreground="White"
-                                      BorderBrush="#555555"
-                                      Padding="5">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Converter={StaticResource BoardSizeDisplayConverter}}"/>
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                            <TextBlock Text="{Binding AppSettings.BoardSize, StringFormat='Current Size: {0}px'}" 
-                                       Foreground="#AAAAAA" FontSize="10" FontStyle="Italic"/>
+                        <TextBlock Text="Display Settings" Foreground="White" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+                        <StackPanel Spacing="15">
+                            <!-- Board Size Settings -->
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Board Size:" Foreground="White" FontSize="12"/>
+                                <ComboBox ItemsSource="{Binding AppSettings.AvailableBoardSizes}"
+                                          SelectedItem="{Binding AppSettings.BoardSize}"
+                                          Background="#2C2C2C"
+                                          Foreground="White"
+                                          BorderBrush="#555555"
+                                          Padding="5">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource BoardSizeDisplayConverter}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBlock Text="{Binding AppSettings.BoardSize, StringFormat='Current Size: {0}px'}" 
+                                           Foreground="#AAAAAA" FontSize="10" FontStyle="Italic"/>
+                            </StackPanel>
+                            
+                            <!-- Window Size Settings -->
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Window Size:" Foreground="White" FontSize="12"/>
+                                <ComboBox ItemsSource="{Binding AppSettings.AvailableWindowSizeModes}"
+                                          SelectedItem="{Binding AppSettings.WindowSizeMode}"
+                                          Background="#2C2C2C"
+                                          Foreground="White"
+                                          BorderBrush="#555555"
+                                          Padding="5">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource WindowSizeDisplayConverter}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBlock Text="{Binding AppSettings.WindowSizeMode, StringFormat='Current Mode: {0}'}" 
+                                           Foreground="#AAAAAA" FontSize="10" FontStyle="Italic"/>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>
