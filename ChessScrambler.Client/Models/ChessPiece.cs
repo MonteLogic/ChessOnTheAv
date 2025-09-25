@@ -1,4 +1,6 @@
 using System;
+using Avalonia.Media.Imaging;
+using ChessScrambler.Client.Converters;
 
 namespace ChessScrambler.Client.Models;
 
@@ -24,6 +26,7 @@ public class ChessPiece
     public PieceColor Color { get; set; }
     public bool HasMoved { get; set; } = false;
     public string Symbol => GetSymbol();
+    public Bitmap? Image => GetImage();
 
     public ChessPiece(PieceType type, PieceColor color)
     {
@@ -57,5 +60,17 @@ public class ChessPiece
             PieceType.King => "K",
             _ => "?"
         };
+    }
+
+    public Bitmap? GetImage()
+    {
+        try
+        {
+            return ChessPieceImageConverter.Instance.Convert(this, typeof(Bitmap), null, System.Globalization.CultureInfo.CurrentCulture) as Bitmap;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
