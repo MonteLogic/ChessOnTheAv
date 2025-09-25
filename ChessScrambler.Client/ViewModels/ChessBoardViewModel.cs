@@ -137,6 +137,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     private string _moveNavigationText;
     private string _gamesBankStatus;
     private string _currentFenPosition;
+    private AppSettings _appSettings;
 
     /**
      * <summary>
@@ -322,6 +323,17 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     /**
      * <summary>
+     * Gets or sets the application settings including board size preferences.
+     * </summary>
+     */
+    public AppSettings AppSettings
+    {
+        get => _appSettings;
+        set => SetProperty(ref _appSettings, value);
+    }
+
+    /**
+     * <summary>
      * Initializes a new instance of the ChessBoardViewModel class.
      * </summary>
      */
@@ -330,6 +342,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         _whitePlayerText = "White: Loading...";
         _blackPlayerText = "Black: Loading...";
         _currentGameMoves = new List<string>();
+        _appSettings = new AppSettings();
         InitializeBoard();
         LoadSampleGames();
         LoadMiddlegamePosition();
