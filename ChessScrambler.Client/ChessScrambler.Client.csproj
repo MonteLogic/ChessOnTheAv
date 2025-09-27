@@ -21,4 +21,8 @@
     <PackageReference Include="ChessDotNet" Version="1.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\ChessPieces\*.png" />
+  </ItemGroup>
+
 </Project>

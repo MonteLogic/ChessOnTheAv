@@ -3,7 +3,9 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using ChessScrambler.Client.ViewModels;
+using ChessScrambler.Client.Models;
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -22,6 +24,22 @@ public partial class MainWindow : Window
         
         // Add UI event logging
         SetupUILogging();
+        
+        // Subscribe to settings changes for window resizing
+        if (_viewModel?.AppSettings != null)
+        {
+            _viewModel.AppSettings.PropertyChanged += OnAppSettingsChanged;
+            
+            // Log initial window size and settings
+            Console.WriteLine($"[WINDOW] Initial window size: {this.Width}x{this.Height}");
+            Console.WriteLine($"[SETTINGS] Loaded settings - Board: {_viewModel.AppSettings.BoardSize}px, Window: {_viewModel.AppSettings.WindowWidth}x{_viewModel.AppSettings.WindowHeight}, Mode: {_viewModel.AppSettings.WindowSizeMode}");
+            
+            // Apply the loaded window size immediately
+            this.Width = _viewModel.AppSettings.WindowWidth;
+            this.Height = _viewModel.AppSettings.WindowHeight;
+            this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            Console.WriteLine($"[WINDOW] Applied loaded size: {this.Width}x{this.Height}");
+        }
     }
 
     private void SetupUILogging()
@@ -49,7 +67,11 @@ public partial class MainWindow : Window
         this.LostFocus += (s, e) => LogUIEvent("Focus", "LostFocus", "Window lost focus");
         
         // Log window resize events (simplified)
-        this.Resized += (s, e) => LogUIEvent("Window", "Resized", "Window resized");
+        this.Resized += (s, e) => 
+        {
+            LogUIEvent("Window", "Resized", $"Window resized to {this.Width}x{this.Height}");
+            Console.WriteLine($"[WINDOW] Current window size: {this.Width}x{this.Height}");
+        };
         
         // Log window position changes (simplified)
         this.PositionChanged += (s, e) => LogUIEvent("Window", "PositionChanged", "Window position changed");
@@ -60,6 +82,37 @@ public partial class MainWindow : Window
         if (Program.EnableUILogging)
         {
             Console.WriteLine($"[UI] {category}.{action}: {details}");
+        }
+    }
+
+    private void OnAppSettingsChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (sender is AppSettings settings)
+        {
+            Console.WriteLine($"[SETTINGS] Property changed: {e.PropertyName}");
+            
+            if (e.PropertyName == nameof(AppSettings.WindowWidth) || e.PropertyName == nameof(AppSettings.WindowHeight))
+            {
+                Console.WriteLine($"[SETTINGS] Window size changed - New: {settings.WindowWidth}x{settings.WindowHeight}, Current: {this.Width}x{this.Height}");
+                
+                // Resize the window when settings change
+                this.Width = settings.WindowWidth;
+                this.Height = settings.WindowHeight;
+                
+                // Center the window after resizing
+                this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                
+                LogUIEvent("Window", "Resized", $"Window resized to {settings.WindowWidth}x{settings.WindowHeight}");
+                Console.WriteLine($"[WINDOW] Applied new size: {this.Width}x{this.Height}");
+            }
+            else if (e.PropertyName == nameof(AppSettings.BoardSize))
+            {
+                Console.WriteLine($"[SETTINGS] Board size changed to: {settings.BoardSize}px");
+            }
+            else if (e.PropertyName == nameof(AppSettings.WindowSizeMode))
+            {
+                Console.WriteLine($"[SETTINGS] Window size mode changed to: {settings.WindowSizeMode}");
+            }
         }
     }
 
@@ -261,6 +314,44 @@ public partial class MainWindow : Window
     {
         LogUIEvent("Button", "ExportCurrentGamePgn", "Export current game PGN button clicked");
         _viewModel?.ExportCurrentGamePgn();
+    }
+
+    private void SaveSettings_Click(object sender, RoutedEventArgs e)
+    {
+        LogUIEvent("Button", "SaveSettings", "Save settings button clicked");
+        _viewModel?.AppSettings?.SaveSettings();
+        
+        // Log current settings
+        if (_viewModel?.AppSettings != null)
+        {
+            Console.WriteLine($"[SETTINGS] Manual save - Board: {_viewModel.AppSettings.BoardSize}px, Window: {_viewModel.AppSettings.WindowWidth}x{_viewModel.AppSettings.WindowHeight}, Mode: {_viewModel.AppSettings.WindowSizeMode}");
+        }
+    }
+
+    private void ResetSettings_Click(object sender, RoutedEventArgs e)
+    {
+        LogUIEvent("Button", "ResetSettings", "Reset settings button clicked");
+        _viewModel?.AppSettings?.ResetToDefaults();
+        
+        // Update the window size immediately
+        if (_viewModel?.AppSettings != null)
+        {
+            this.Width = _viewModel.AppSettings.WindowWidth;
+            this.Height = _viewModel.AppSettings.WindowHeight;
+            this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            Console.WriteLine($"[SETTINGS] Reset - Board: {_viewModel.AppSettings.BoardSize}px, Window: {_viewModel.AppSettings.WindowWidth}x{_viewModel.AppSettings.WindowHeight}, Mode: {_viewModel.AppSettings.WindowSizeMode}");
+        }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        // Unsubscribe from settings changes
+        if (_viewModel?.AppSettings != null)
+        {
+            _viewModel.AppSettings.PropertyChanged -= OnAppSettingsChanged;
+        }
+        
+        base.OnClosed(e);
     }
 
 }

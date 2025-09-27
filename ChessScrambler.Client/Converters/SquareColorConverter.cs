@@ -26,11 +26,11 @@ public class SquareColorConverter : IMultiValueConverter
         }
         else if (isLightSquare)
         {
-            return Colors.LightGray;
+            return Color.FromRgb(240, 217, 181); // Traditional light square color
         }
         else
         {
-            return Colors.DarkGray;
+            return Color.FromRgb(181, 136, 99);  // Traditional dark square color
         }
     }
 
