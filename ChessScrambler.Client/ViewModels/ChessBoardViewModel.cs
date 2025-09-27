@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using ChessScrambler.Client.Models;
+using ChessDotNet;
 
 namespace ChessScrambler.Client.ViewModels;
 
@@ -138,6 +139,8 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     private string _gamesBankStatus;
     private string _currentFenPosition;
     private AppSettings _appSettings;
+    private int _currentGamePosition; // Current position in the full game (0 = starting position)
+    private int _originalGameMovesCount; // Number of moves in the original game (before any new moves)
 
     /**
      * <summary>
@@ -342,6 +345,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         _whitePlayerText = "White: Loading...";
         _blackPlayerText = "Black: Loading...";
         _currentGameMoves = new List<string>();
+        _currentGamePosition = 0;
         _appSettings = AppSettings.LoadSettings(); // Load saved settings
         InitializeBoard();
         LoadSampleGames();
@@ -443,6 +447,10 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
             // Store the current game's moves for move history
             _currentGameMoves = cotaGame.Moves;
+            
+            // Set current position to the end of the original game (middlegame position)
+            _currentGamePosition = cotaGame.Moves.Count;
+            _originalGameMovesCount = cotaGame.Moves.Count;
 
             // Update game info to show it's from the COTA game
             GameIdText = $"Game: {cotaGame.GetDisplayName()}";
@@ -880,11 +888,22 @@ public class ChessBoardViewModel : INotifyPropertyChanged
      */
     public void GoToFirstMove()
     {
-        if (_chessBoard != null)
+        if (_chessBoard != null && _currentGameMoves != null && _currentGameMoves.Count > 0)
+        {
+            // Go to the very beginning of the original game
+            _currentGamePosition = 0;
+            ReplayGameToCurrentPosition();
+            UpdateBoard();
+            UpdateGameStatus();
+            UpdateMoveHistory();
+            UpdateNavigationState();
+        }
+        else if (_chessBoard != null)
         {
             _chessBoard.GoToFirstMove();
             UpdateBoard();
             UpdateGameStatus();
+            UpdateMoveHistory();
             UpdateNavigationState();
         }
     }
@@ -896,11 +915,22 @@ public class ChessBoardViewModel : INotifyPropertyChanged
      */
     public void GoToLastMove()
     {
-        if (_chessBoard != null)
+        if (_chessBoard != null && _currentGameMoves != null && _currentGameMoves.Count > 0)
+        {
+            // Go to the end of the original game (or beyond if new moves were added)
+            _currentGamePosition = _currentGameMoves.Count;
+            ReplayGameToCurrentPosition();
+            UpdateBoard();
+            UpdateGameStatus();
+            UpdateMoveHistory();
+            UpdateNavigationState();
+        }
+        else if (_chessBoard != null)
         {
             _chessBoard.GoToLastMove();
             UpdateBoard();
             UpdateGameStatus();
+            UpdateMoveHistory();
             UpdateNavigationState();
         }
     }
@@ -912,11 +942,25 @@ public class ChessBoardViewModel : INotifyPropertyChanged
      */
     public void GoToPreviousMove()
     {
-        if (_chessBoard != null)
+        if (_chessBoard != null && _currentGameMoves != null && _currentGameMoves.Count > 0)
+        {
+            // Go back one move in the full game
+            if (_currentGamePosition > 0)
+            {
+                _currentGamePosition--;
+                ReplayGameToCurrentPosition();
+                UpdateBoard();
+                UpdateGameStatus();
+                UpdateMoveHistory();
+                UpdateNavigationState();
+            }
+        }
+        else if (_chessBoard != null)
         {
             _chessBoard.GoToPreviousMove();
             UpdateBoard();
             UpdateGameStatus();
+            UpdateMoveHistory();
             UpdateNavigationState();
         }
     }
@@ -928,17 +972,55 @@ public class ChessBoardViewModel : INotifyPropertyChanged
      */
     public void GoToNextMove()
     {
-        if (_chessBoard != null)
+        if (_chessBoard != null && _currentGameMoves != null && _currentGameMoves.Count > 0)
+        {
+            // Go forward one move in the full game
+            if (_currentGamePosition < _currentGameMoves.Count)
+            {
+                _currentGamePosition++;
+                
+                // Show warning if going beyond original game
+                if (_currentGamePosition > _originalGameMovesCount)
+                {
+                    if (Program.EnableGameLogging)
+                    {
+                        Console.WriteLine($"[GAME] WARNING: Going beyond original game moves! Position {_currentGamePosition} > {_originalGameMovesCount}");
+                    }
+                }
+                
+                ReplayGameToCurrentPosition();
+                UpdateBoard();
+                UpdateGameStatus();
+                UpdateMoveHistory();
+                UpdateNavigationState();
+            }
+        }
+        else if (_chessBoard != null)
         {
             _chessBoard.GoToNextMove();
             UpdateBoard();
             UpdateGameStatus();
+            UpdateMoveHistory();
             UpdateNavigationState();
         }
     }
 
     private void UpdateBoard()
     {
+        if (_chessBoard == null)
+        {
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine("[GAME] UpdateBoard called but _chessBoard is null");
+            }
+            return;
+        }
+
+        if (Program.EnableGameLogging)
+        {
+            Console.WriteLine($"[GAME] UpdateBoard called - Current FEN: {_chessBoard.GetFen()}");
+        }
+
         for (int row = 0; row < 8; row++)
         {
             for (int col = 0; col < 8; col++)
@@ -946,8 +1028,14 @@ public class ChessBoardViewModel : INotifyPropertyChanged
                 var square = Squares.FirstOrDefault(s => s.Row == row && s.Column == col);
                 if (square != null)
                 {
-                    square.Piece = _chessBoard.GetPiece(row, col);
+                    var piece = _chessBoard.GetPiece(row, col);
+                    square.Piece = piece;
                     square.IsHighlighted = false;
+                    
+                    if (Program.EnableGameLogging && piece != null)
+                    {
+                        Console.WriteLine($"[GAME] Updated square ({row},{col}) with piece: {piece.Type} {piece.Color}");
+                    }
                 }
             }
         }
@@ -1009,15 +1097,61 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     private void UpdateMoveHistory()
     {
+        // For middlegame positions, show the full game history from _currentGameMoves
         if (_currentGameMoves != null && _currentGameMoves.Count > 0)
         {
-            // Format the moves in a readable way with proper move numbers
             var moveHistory = new List<string>();
+            var currentMoveIndex = _currentGamePosition;
+            
             for (int i = 0; i < _currentGameMoves.Count; i += 2)
             {
                 var moveNumber = (i / 2) + 1;
                 var whiteMove = _currentGameMoves[i];
                 var blackMove = i + 1 < _currentGameMoves.Count ? _currentGameMoves[i + 1] : "";
+
+                // Highlight the current position
+                var isCurrentPosition = (currentMoveIndex == i) || (currentMoveIndex == i + 1);
+                var isOriginalGame = i < _originalGameMovesCount;
+                
+                string moveText;
+                if (!string.IsNullOrEmpty(blackMove))
+                {
+                    moveText = $"{moveNumber}. {whiteMove} {blackMove}";
+                }
+                else
+                {
+                    moveText = $"{moveNumber}. {whiteMove}";
+                }
+                
+                // Add highlighting for current position only
+                if (isCurrentPosition)
+                {
+                    moveText = $"**{moveText}**";
+                }
+                
+                moveHistory.Add(moveText);
+            }
+
+            // Add warning if we're beyond the original game
+            if (currentMoveIndex > _originalGameMovesCount)
+            {
+                moveHistory.Add("\n⚠️  WARNING: You are beyond the original game moves!");
+                moveHistory.Add("   Any new moves will be added to the game history.");
+            }
+
+            MoveHistoryText = string.Join("\n", moveHistory);
+        }
+        else if (_chessBoard != null && _chessBoard.MoveHistory.Count > 0)
+        {
+            // Format the moves in a readable way with proper move numbers
+            var moveHistory = new List<string>();
+            var moves = _chessBoard.MoveHistory;
+            
+            for (int i = 0; i < moves.Count; i += 2)
+            {
+                var moveNumber = (i / 2) + 1;
+                var whiteMove = moves[i].GetAlgebraicNotation(_chessBoard);
+                var blackMove = i + 1 < moves.Count ? moves[i + 1].GetAlgebraicNotation(_chessBoard) : "";
 
                 if (!string.IsNullOrEmpty(blackMove))
                 {
@@ -1041,12 +1175,45 @@ public class ChessBoardViewModel : INotifyPropertyChanged
     {
         if (_chessBoard != null)
         {
-            CanGoBack = _chessBoard.CanGoBack;
-            CanGoForward = _chessBoard.CanGoForward;
+            // For middlegame positions, use our custom navigation
+            if (_currentGameMoves != null && _currentGameMoves.Count > 0)
+            {
+                CanGoBack = _currentGamePosition > 0;
+                CanGoForward = _currentGamePosition < _currentGameMoves.Count;
+                
+                var totalMoves = _currentGameMoves.Count;
+                if (_currentGamePosition == 0)
+                {
+                    MoveNavigationText = "Initial Position (Start of Game)";
+                }
+                else if (_currentGamePosition == totalMoves)
+                {
+                    MoveNavigationText = $"Position {_currentGamePosition} of {totalMoves} (End of Original Game)";
+                }
+                else
+                {
+                    MoveNavigationText = $"Position {_currentGamePosition} of {totalMoves} (Middlegame)";
+                }
+            }
+            else
+            {
+                // Fallback to original navigation for non-middlegame games
+                CanGoBack = _chessBoard.CanGoBack;
+                CanGoForward = _chessBoard.CanGoForward;
 
-            var currentMove = _chessBoard.Game.CurrentMoveIndex + 1;
-            var totalMoves = _chessBoard.Game.MoveHistory.Count;
-            MoveNavigationText = $"Move {currentMove} of {totalMoves}";
+                var currentMoveIndex = _chessBoard.Game.CurrentMoveIndex;
+                var totalMoves = _chessBoard.Game.MoveHistory.Count;
+                
+                if (currentMoveIndex == -1)
+                {
+                    MoveNavigationText = "Initial Position";
+                }
+                else
+                {
+                    var currentMove = currentMoveIndex + 1;
+                    MoveNavigationText = $"Move {currentMove} of {totalMoves}";
+                }
+            }
         }
     }
 
@@ -1129,7 +1296,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
                     Console.WriteLine($"[GAME] Attempting move from {SelectedSquare.Row},{SelectedSquare.Column} to {square.Row},{square.Column}");
                 }
                 // Try to make a move
-                var move = new Move(new Position(SelectedSquare.Row, SelectedSquare.Column), new Position(square.Row, square.Column));
+                var move = new Models.Move(new Models.Position(SelectedSquare.Row, SelectedSquare.Column), new Models.Position(square.Row, square.Column));
                 if (Program.EnableGameLogging)
                 {
                     Console.WriteLine($"[GAME] Move object created: {move.GetNotation()}");
@@ -1155,8 +1322,32 @@ public class ChessBoardViewModel : INotifyPropertyChanged
                         {
                             Console.WriteLine("[GAME] Move successful, updating board and game status");
                         }
+                        
+                        // Add the new move to the current game moves if we're in a middlegame position
+                        if (_currentGameMoves != null && _currentGameMoves.Count > 0)
+                        {
+                            var newMove = move.GetAlgebraicNotation(_chessBoard);
+                            _currentGameMoves.Add(newMove);
+                            _currentGamePosition = _currentGameMoves.Count; // Update position to the new end
+                            
+                            // Update original game moves count if this is the first new move
+                            if (_currentGameMoves.Count > _originalGameMovesCount)
+                            {
+                                _originalGameMovesCount = _currentGameMoves.Count - 1; // Keep track of where original game ended
+                            }
+                            
+                            if (Program.EnableGameLogging)
+                            {
+                                Console.WriteLine($"[GAME] Added new move to game history: {newMove}");
+                                Console.WriteLine($"[GAME] Current game position: {_currentGamePosition}");
+                                Console.WriteLine($"[GAME] Original game ended at move: {_originalGameMovesCount}");
+                            }
+                        }
+                        
                         UpdateBoard();
                         UpdateGameStatus();
+                        UpdateMoveHistory();
+                        UpdateNavigationState();
                         SelectedSquare = null;
                         ClearHighlights();
                         if (Program.EnableGameLogging)
@@ -1187,7 +1378,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     private void HighlightValidMoves(SquareViewModel fromSquare)
     {
-        var fromPosition = new Position(fromSquare.Row, fromSquare.Column);
+        var fromPosition = new Models.Position(fromSquare.Row, fromSquare.Column);
         if (Program.EnableGameLogging)
         {
             Console.WriteLine($"[GAME] Getting valid moves for piece at {fromPosition.Row},{fromPosition.Column}");
@@ -1200,7 +1391,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
         foreach (var square in Squares)
         {
-            var move = new Move(fromPosition, new Position(square.Row, square.Column));
+            var move = new Models.Move(fromPosition, new Models.Position(square.Row, square.Column));
             square.IsHighlighted = validMoves.Any(m => m.From.Equals(move.From) && m.To.Equals(move.To));
         }
     }
@@ -1210,6 +1401,148 @@ public class ChessBoardViewModel : INotifyPropertyChanged
         foreach (var square in Squares)
         {
             square.IsHighlighted = false;
+        }
+    }
+
+        private ChessDotNet.Move ConvertAlgebraicToChessDotNet(string algebraicMove, IEnumerable<ChessDotNet.Move> validMoves)
+        {
+            if (string.IsNullOrEmpty(algebraicMove))
+                return null;
+
+            // Simple conversion for basic moves
+            foreach (var move in validMoves)
+            {
+                var moveStr = move.ToString();
+                
+                // Convert ChessDotNet format (E2-E4) to algebraic (e4)
+                if (moveStr.Length >= 5 && moveStr[2] == '-')
+                {
+                    var from = moveStr.Substring(0, 2).ToLower();
+                    var to = moveStr.Substring(3, 2).ToLower();
+                    
+                    // Handle pawn moves
+                    if (from[0] == to[0] && char.IsDigit(from[1]) && char.IsDigit(to[1]))
+                    {
+                        // Pawn move forward
+                        if (algebraicMove == to)
+                            return move;
+                    }
+                    else if (from[0] != to[0] && char.IsDigit(from[1]) && char.IsDigit(to[1]))
+                    {
+                        // Pawn capture
+                        if (algebraicMove == from[0] + "x" + to || algebraicMove == to)
+                            return move;
+                    }
+                    else
+                    {
+                        // Piece moves - try to match the destination
+                        if (algebraicMove.EndsWith(to))
+                        {
+                            // Check if piece type matches
+                            var pieceType = GetPieceTypeFromAlgebraic(algebraicMove);
+                            if (pieceType != null)
+                            {
+                                // This is a simplified match - we'd need more logic for disambiguation
+                                return move;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        private string GetPieceTypeFromAlgebraic(string algebraicMove)
+        {
+            if (string.IsNullOrEmpty(algebraicMove))
+                return null;
+                
+            var firstChar = algebraicMove[0];
+            if (char.IsUpper(firstChar))
+            {
+                switch (firstChar)
+                {
+                    case 'K': return "King";
+                    case 'Q': return "Queen";
+                    case 'R': return "Rook";
+                    case 'B': return "Bishop";
+                    case 'N': return "Knight";
+                }
+            }
+            return "Pawn";
+        }
+
+        private void ReplayGameToCurrentPosition()
+        {
+        if (_currentGameMoves == null || _currentGameMoves.Count == 0)
+        {
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine("[GAME] ReplayGameToCurrentPosition: No moves available");
+            }
+            return;
+        }
+
+        try
+        {
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] ReplayGameToCurrentPosition: Starting replay to position {_currentGamePosition} of {_currentGameMoves.Count}");
+            }
+
+            // Create a new chess game from the starting position
+            var chessGame = new ChessDotNet.ChessGame();
+            
+            // Replay moves up to the current position
+            for (int i = 0; i < _currentGamePosition; i++)
+            {
+                var moveText = _currentGameMoves[i];
+                var validMoves = chessGame.GetValidMoves(chessGame.WhoseTurn);
+                
+                if (Program.EnableGameLogging)
+                {
+                    Console.WriteLine($"[GAME] Looking for move {i + 1}: '{moveText}'");
+                    Console.WriteLine($"[GAME] Available moves: {string.Join(", ", validMoves.Select(m => m.ToString()))}");
+                }
+                
+                // Convert algebraic notation to ChessDotNet format
+                var chessDotNetMove = ConvertAlgebraicToChessDotNet(moveText, validMoves);
+                
+                if (chessDotNetMove != null)
+                {
+                    chessGame.MakeMove(chessDotNetMove, true);
+                    if (Program.EnableGameLogging)
+                    {
+                        Console.WriteLine($"[GAME] Applied move {i + 1}: {moveText} -> {chessDotNetMove}");
+                    }
+                }
+                else
+                {
+                    if (Program.EnableGameLogging)
+                    {
+                        Console.WriteLine($"[GAME] Could not find move {i + 1}: '{moveText}'");
+                        Console.WriteLine($"[GAME] Available moves: {string.Join(", ", validMoves.Select(m => m.ToString()))}");
+                    }
+                }
+            }
+            
+            // Update the chess board with the current position
+            var currentFen = chessGame.GetFen();
+            _chessBoard = new ChessBoard(currentFen);
+            
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Replayed game to position {_currentGamePosition} of {_currentGameMoves.Count}");
+                Console.WriteLine($"[GAME] Current FEN: {currentFen}");
+            }
+        }
+        catch (Exception ex)
+        {
+            if (Program.EnableGameLogging)
+            {
+                Console.WriteLine($"[GAME] Error replaying game: {ex.Message}");
+            }
         }
     }
 
