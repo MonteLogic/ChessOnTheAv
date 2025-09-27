@@ -101,13 +101,7 @@
                                            Height="{Binding $parent[Window].DataContext.AppSettings.PieceSize}"
                                            HorizontalAlignment="Center" 
                                            VerticalAlignment="Center"
-                                           RenderOptions.BitmapInterpolationMode="HighQuality">
-                                        <Image.Effect>
-                                            <DropShadowEffect Color="Black" 
-                                                              BlurRadius="2" 
-                                                              Opacity="0.5"/>
-                                        </Image.Effect>
-                                    </Image>
+                                           RenderOptions.BitmapInterpolationMode="HighQuality"/>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

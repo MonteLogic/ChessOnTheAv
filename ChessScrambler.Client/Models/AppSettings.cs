@@ -45,8 +45,8 @@ public class AppSettings : INotifyPropertyChanged
             {
                 // Automatically calculate square size based on board size
                 SquareSize = _boardSize / 8;
-                // Automatically calculate piece size (slightly smaller than square)
-                PieceSize = (int)(SquareSize * 0.83);
+                // Automatically calculate piece size (slightly smaller than square, 5% larger than before)
+                PieceSize = (int)(SquareSize * 0.87);
             }
         }
     }
@@ -66,7 +66,7 @@ public class AppSettings : INotifyPropertyChanged
     /**
      * <summary>
      * Gets or sets the size of chess pieces in pixels.
-     * This is automatically calculated as 83% of the square size.
+     * This is automatically calculated as 87% of the square size.
      * </summary>
      */
     public int PieceSize
@@ -397,7 +397,7 @@ public class AppSettings : INotifyPropertyChanged
 
         // Recalculate dependent values
         SquareSize = _boardSize / 8;
-        PieceSize = (int)(SquareSize * 0.83);
+        PieceSize = (int)(SquareSize * 0.87);
     }
 
     /**
