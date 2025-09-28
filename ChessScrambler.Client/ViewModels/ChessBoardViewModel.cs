@@ -693,24 +693,21 @@ public class ChessBoardViewModel : INotifyPropertyChanged
 
     /**
      * <summary>
-     * Exports the current debug state of the chess board to a file on the desktop.
+     * Exports the current debug state of the chess board and returns it as a string.
      * </summary>
      */
-    public void ExportDebugState()
+    public string ExportDebugState()
     {
         try
         {
             var debugState = _chessBoard.ExportDebugState();
-            var fileName = $"chess_debug_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
-            var filePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
-
-            System.IO.File.WriteAllText(filePath, debugState);
-
-            GameStatusText = $"Debug state exported to: {fileName}";
+            GameStatusText = "Debug state exported";
+            return debugState;
         }
         catch (Exception ex)
         {
             GameStatusText = $"Error exporting debug state: {ex.Message}";
+            return $"Error: {ex.Message}";
         }
     }
 
