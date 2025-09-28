@@ -10,7 +10,7 @@ namespace ChessScrambler.Client.Models
         public string Name { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastPlayedAt { get; set; }
-        public string InitialFen { get; set; }
+        public string InitialFen { get; set; } = "";
         public List<Move> MoveHistory { get; set; }
         public int CurrentMoveIndex { get; set; }
         public PieceColor CurrentPlayer { get; set; }

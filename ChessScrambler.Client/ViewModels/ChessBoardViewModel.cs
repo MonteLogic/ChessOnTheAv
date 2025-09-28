@@ -17,7 +17,7 @@ namespace ChessScrambler.Client.ViewModels;
  */
 public class SquareViewModel : INotifyPropertyChanged
 {
-    private ChessPiece _piece;
+    private ChessPiece? _piece;
     private bool _isSelected;
     private bool _isHighlighted;
     private bool _isLightSquare;
@@ -27,7 +27,7 @@ public class SquareViewModel : INotifyPropertyChanged
      * Gets or sets the chess piece occupying this square.
      * </summary>
      */
-    public ChessPiece Piece
+    public ChessPiece? Piece
     {
         get => _piece;
         set => SetProperty(ref _piece, value);
@@ -92,7 +92,7 @@ public class SquareViewModel : INotifyPropertyChanged
      * Occurs when a property value changes.
      * </summary>
      */
-    public event PropertyChangedEventHandler PropertyChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     /**
      * <summary>
@@ -100,12 +100,12 @@ public class SquareViewModel : INotifyPropertyChanged
      * </summary>
      * <param name="propertyName">The name of the property that changed. If null, the caller member name is used.</param>
      */
-    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
-    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (Equals(field, value)) return false;
         field = value;
@@ -121,24 +121,24 @@ public class SquareViewModel : INotifyPropertyChanged
  */
 public class ChessBoardViewModel : INotifyPropertyChanged
 {
-    private ChessBoard _chessBoard;
-    private SquareViewModel _selectedSquare;
-    private string _currentPlayerText;
-    private string _moveHistoryText;
+    private ChessBoard? _chessBoard;
+    private SquareViewModel? _selectedSquare;
+    private string _currentPlayerText = "";
+    private string _moveHistoryText = "";
     private bool _isGameOver;
-    private string _gameStatusText;
-    private string _whitePlayerText;
-    private string _blackPlayerText;
-    private List<string> _currentGameMoves;
+    private string _gameStatusText = "";
+    private string _whitePlayerText = "";
+    private string _blackPlayerText = "";
+    private List<string> _currentGameMoves = new();
     private bool _showGameEndPopup;
-    private string _gameEndMessage;
-    private string _gameIdText;
+    private string _gameEndMessage = "";
+    private string _gameIdText = "";
     private bool _canGoBack;
     private bool _canGoForward;
-    private string _moveNavigationText;
-    private string _gamesBankStatus;
-    private string _currentFenPosition;
-    private AppSettings _appSettings;
+    private string _moveNavigationText = "";
+    private string _gamesBankStatus = "";
+    private string _currentFenPosition = "";
+    private AppSettings? _appSettings;
     private int _currentGamePosition; // Current position in the full game (0 = starting position)
     private int _originalGameMovesCount; // Number of moves in the original game (before any new moves)
 
@@ -154,7 +154,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
      * Gets or sets the currently selected square on the chess board.
      * </summary>
      */
-    public SquareViewModel SelectedSquare
+    public SquareViewModel? SelectedSquare
     {
         get => _selectedSquare;
         set
@@ -329,7 +329,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
      * Gets or sets the application settings including board size preferences.
      * </summary>
      */
-    public AppSettings AppSettings
+    public AppSettings? AppSettings
     {
         get => _appSettings;
         set => SetProperty(ref _appSettings, value);
@@ -1548,7 +1548,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
      * Occurs when a property value changes.
      * </summary>
      */
-    public event PropertyChangedEventHandler PropertyChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     /**
      * <summary>
@@ -1556,7 +1556,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
      * </summary>
      * <param name="propertyName">The name of the property that changed. If null, the caller member name is used.</param>
      */
-    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
@@ -1571,7 +1571,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
      * <param name="propertyName">The name of the property. If null, the caller member name is used.</param>
      * <returns>True if the property value was changed; otherwise, false.</returns>
      */
-    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (Equals(field, value)) return false;
         field = value;

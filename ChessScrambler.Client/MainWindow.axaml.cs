@@ -85,7 +85,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnAppSettingsChanged(object sender, PropertyChangedEventArgs e)
+    private void OnAppSettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (sender is AppSettings settings)
         {

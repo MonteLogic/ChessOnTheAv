@@ -248,7 +248,7 @@ public class AppSettings : INotifyPropertyChanged
      * Occurs when a property value changes.
      * </summary>
      */
-    public event PropertyChangedEventHandler PropertyChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     /**
      * <summary>
@@ -256,7 +256,7 @@ public class AppSettings : INotifyPropertyChanged
      * </summary>
      * <param name="propertyName">The name of the property that changed. If null, the caller member name is used.</param>
      */
-    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
@@ -271,7 +271,7 @@ public class AppSettings : INotifyPropertyChanged
      * <param name="propertyName">The name of the property. If null, the caller member name is used.</param>
      * <returns>True if the property value was changed; otherwise, false.</returns>
      */
-    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (Equals(field, value)) return false;
         field = value;

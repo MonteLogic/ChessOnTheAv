@@ -13,7 +13,7 @@ public class ChessPieceImageConverter : IValueConverter
 {
     public static readonly ChessPieceImageConverter Instance = new();
 
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is ChessPiece piece)
         {
@@ -36,7 +36,7 @@ public class ChessPieceImageConverter : IValueConverter
         return null;
     }
 
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotImplementedException();
     }

@@ -7,7 +7,7 @@ namespace ChessScrambler.VisualTests;
 
 public class VisualRegressionTests : VisualTestBase
 {
-    private static readonly string BaselineImagesDirectory = Path.Combine("baseline-images");
+    private new static readonly string BaselineImagesDirectory = Path.Combine("baseline-images");
 
     [Fact]
     public async Task MainWindow_ShouldMatchBaseline()

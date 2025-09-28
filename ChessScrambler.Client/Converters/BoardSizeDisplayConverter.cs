@@ -13,7 +13,7 @@ public class BoardSizeDisplayConverter : IValueConverter
 {
     public static readonly BoardSizeDisplayConverter Instance = new();
 
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is int size)
         {
@@ -32,7 +32,7 @@ public class BoardSizeDisplayConverter : IValueConverter
         return value?.ToString() ?? "";
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is string str)
         {
