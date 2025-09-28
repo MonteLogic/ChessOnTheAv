@@ -16,11 +16,13 @@ namespace ChessScrambler.VisualTests;
 public abstract class VisualTestBase
 {
     protected static readonly string ScreenshotsDirectory = Path.Combine(Environment.CurrentDirectory, "visual-test-screenshots");
+    protected static readonly string BaselineImagesDirectory = Path.Combine(Environment.CurrentDirectory, "baseline-images");
     
     static VisualTestBase()
     {
-        // Ensure screenshots directory exists
+        // Ensure directories exist
         Directory.CreateDirectory(ScreenshotsDirectory);
+        Directory.CreateDirectory(BaselineImagesDirectory);
     }
 
     protected static AppBuilder CreateAppBuilder()
@@ -123,5 +125,29 @@ public abstract class VisualTestBase
         }
         
         comparison.Save(comparisonPath);
+    }
+
+    protected static async Task<bool> CompareWithBaseline(string testName, string screenshotPath, double threshold = 0.02)
+    {
+        var baselinePath = Path.Combine(BaselineImagesDirectory, $"{testName}_Baseline.png");
+        
+        if (!File.Exists(baselinePath))
+        {
+            // First run - save as baseline
+            File.Copy(screenshotPath, baselinePath);
+            return true;
+        }
+
+        var baselineImage = await LoadImage(baselinePath);
+        var currentImage = await LoadImage(screenshotPath);
+        
+        var matches = CompareImages(baselineImage, currentImage, threshold);
+        
+        if (!matches)
+        {
+            SaveComparisonImage(baselineImage, currentImage, testName);
+        }
+        
+        return matches;
     }
 }
