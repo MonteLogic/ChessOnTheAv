@@ -1,0 +1,47 @@
+name: .NET Core Desktop
+
+on:
+  push:
+    branches: [ main, develop, MonteLogic/issue12 ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  Solution_Name: ChessScrambler.sln
+  Test_Project_Path: ChessScrambler.Client/ChessScrambler.Tests/ChessScrambler.Tests.csproj
+  Wap_Project_Directory: ChessScrambler.Client
+  Wap_Project_Path: ChessScrambler.Client/ChessScrambler.Client.csproj
+  Configuration: Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Restore dependencies
+      run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
+      
+    - name: Build application
+      run: msbuild $env:Solution_Name /t:Build /p:Configuration=$env:Configuration
+      
+    - name: Run unit tests
+      run: dotnet test $env:Test_Project_Path --configuration $env:Configuration --no-build --logger "console;verbosity=normal"
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: build-artifacts
+        path: |
+          ChessScrambler.Client/bin/
+          ChessScrambler.Server/bin/
+        retention-days: 30
