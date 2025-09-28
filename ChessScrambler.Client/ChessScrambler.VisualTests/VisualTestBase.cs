@@ -18,6 +18,9 @@ public abstract class VisualTestBase
     protected static readonly string ScreenshotsDirectory = Path.Combine(Environment.CurrentDirectory, "visual-test-screenshots");
     protected static readonly string BaselineImagesDirectory = Path.Combine(Environment.CurrentDirectory, "baseline-images");
     
+    // Static AppBuilder instance that's set up once and reused across all tests
+    private static readonly AppBuilder AppBuilderInstance = BuildAvaloniaApp().SetupWithoutStarting();
+    
     static VisualTestBase()
     {
         // Ensure directories exist
@@ -25,7 +28,7 @@ public abstract class VisualTestBase
         Directory.CreateDirectory(BaselineImagesDirectory);
     }
 
-    protected static AppBuilder CreateAppBuilder()
+    private static AppBuilder BuildAvaloniaApp()
     {
         return AppBuilder.Configure<ChessScrambler.Client.App>()
             .UseHeadless(new AvaloniaHeadlessPlatformOptions())
@@ -36,7 +39,7 @@ public abstract class VisualTestBase
 
     protected static Task<T> CreateWindow<T>() where T : Window, new()
     {
-        var app = CreateAppBuilder().SetupWithoutStarting();
+        // Use the static AppBuilder instance that's already set up
         var window = new T();
         // Simplified approach - just return the window without complex lifetime management
         return Task.FromResult(window);
