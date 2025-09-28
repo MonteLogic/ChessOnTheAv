@@ -1,0 +1,47 @@
+{
+  "visualTests": {
+    "enabled": true,
+    "autoComment": true,
+    "uploadArtifacts": true,
+    "baselineAutoUpdate": false,
+    "thresholds": {
+      "comparison": 0.02,
+      "resize": 0.05
+    },
+    "windowSizes": [
+      { "width": 800, "height": 600 },
+      { "width": 1200, "height": 800 },
+      { "width": 1600, "height": 1200 }
+    ],
+    "testTimeout": 300,
+    "screenshotDelay": 100,
+    "resizeDelay": 200
+  },
+  "prIntegration": {
+    "commentOnSuccess": true,
+    "commentOnFailure": true,
+    "uploadScreenshots": true,
+    "createBaselinePR": false,
+    "requireApproval": true
+  },
+  "notifications": {
+    "slack": {
+      "enabled": false,
+      "webhookUrl": ""
+    },
+    "teams": {
+      "enabled": false,
+      "webhookUrl": ""
+    },
+    "email": {
+      "enabled": false,
+      "recipients": []
+    }
+  },
+  "artifacts": {
+    "retentionDays": 30,
+    "includeScreenshots": true,
+    "includeComparisonImages": true,
+    "includeTestResults": true
+  }
+}

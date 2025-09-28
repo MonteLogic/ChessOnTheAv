@@ -1,0 +1,269 @@
+name: Visual Tests PR Integration
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '**/*.axaml'
+      - '**/*.axaml.cs'
+      - '**/*.cs'
+      - '**/ChessScrambler.VisualTests/**'
+      - '**/Assets/**'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'update-baselines'
+        type: choice
+        options:
+          - update-baselines
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  visual-tests-pr:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb libx11-6 libx11-xcb1 libxcb1 libxss1 libgconf-2-4 libxrandr2 libasound2 libpangocairo-1.0-0 libatk1.0-0 libcairo-gobject2 libgtk-3-0 libgdk-pixbuf2.0-0
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build application
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Run visual regression tests
+      id: visual-tests
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1920x1080x24 &
+        sleep 5
+        
+        # Create directories for test outputs
+        mkdir -p TestResults
+        mkdir -p visual-test-screenshots
+        
+        # Run tests and capture exit code
+        set +e
+        dotnet test ChessScrambler.VisualTests/ChessScrambler.VisualTests.csproj --configuration Release --logger "console;verbosity=detailed" --results-directory TestResults
+        TEST_EXIT_CODE=$?
+        set -e
+        
+        echo "test-exit-code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+        
+    - name: Generate test report
+      if: always()
+      run: |
+        # Create test report
+        echo "## 🎨 Visual Regression Test Results" > test-report.md
+        echo "" >> test-report.md
+        echo "**Branch:** \`${{ github.head_ref }}\`" >> test-report.md
+        echo "**Commit:** \`${{ github.sha }}\`" >> test-report.md
+        echo "**Test Date:** $(date -u)" >> test-report.md
+        echo "" >> test-report.md
+        
+        if [ "${{ steps.visual-tests.outputs.test-exit-code }}" = "0" ]; then
+          echo "### ✅ Status: PASSED" >> test-report.md
+          echo "" >> test-report.md
+          echo "All visual regression tests have passed successfully! No visual regressions detected." >> test-report.md
+        else
+          echo "### ❌ Status: FAILED" >> test-report.md
+          echo "" >> test-report.md
+          echo "Visual regression tests have detected potential UI changes. Please review the results below." >> test-report.md
+          echo "" >> test-report.md
+          echo "**Next Steps:**" >> test-report.md
+          echo "1. Review the generated screenshots and comparison images" >> test-report.md
+          echo "2. If changes are intentional, update baseline images" >> test-report.md
+          echo "3. If changes are unintentional, investigate the UI modifications" >> test-report.md
+        fi
+        
+        echo "" >> test-report.md
+        echo "**Test Framework:** Avalonia Headless + XUnit" >> test-report.md
+        echo "**Platform:** Ubuntu Latest" >> test-report.md
+        
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: visual-test-results-${{ github.run_number }}
+        path: |
+          TestResults/
+          visual-test-screenshots/
+          test-report.md
+        retention-days: 30
+        if-no-files-found: warn
+        
+    - name: Comment on PR
+      if: always() && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const testReport = fs.readFileSync('test-report.md', 'utf8');
+          
+          // Check if there's already a visual test comment
+          const comments = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const existingComment = comments.data.find(comment => 
+            comment.user.type === 'Bot' && 
+            comment.body.includes('🎨 Visual Regression Test Results')
+          );
+          
+          const commentBody = testReport + '\n\n---\n*This comment is automatically updated with each push.*';
+          
+          if (existingComment) {
+            // Update existing comment
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existingComment.id,
+              body: commentBody
+            });
+          } else {
+            // Create new comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: commentBody
+            });
+          }
+          
+    - name: Set PR status
+      if: always()
+      run: |
+        if [ "${{ steps.visual-tests.outputs.test-exit-code }}" = "0" ]; then
+          echo "Visual tests passed ✅"
+        else
+          echo "Visual tests failed ❌"
+          exit 1
+        fi
+
+  baseline-update-workflow:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'update-baselines'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+        
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb libx11-6 libx11-xcb1 libxcb1 libxss1 libgconf-2-4 libxrandr2 libasound2 libpangocairo-1.0-0 libatk1.0-0 libcairo-gobject2 libgtk-3-0 libgdk-pixbuf2.0-0
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build application
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Generate new baseline images
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1920x1080x24 &
+        sleep 5
+        
+        # Create directories for test outputs
+        mkdir -p TestResults
+        mkdir -p visual-test-screenshots
+        
+        # Run tests to generate baseline images
+        dotnet test ChessScrambler.VisualTests/ChessScrambler.VisualTests.csproj --configuration Release --logger "console;verbosity=minimal"
+        
+    - name: Create baseline update PR
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Configure git
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Create new branch
+        BRANCH_NAME="update-visual-baselines-$(date +%Y%m%d-%H%M%S)"
+        git checkout -b "$BRANCH_NAME"
+        
+        # Check if baseline images exist and add them
+        if [ -d "visual-test-screenshots" ] && [ "$(ls -A visual-test-screenshots 2>/dev/null)" ]; then
+          echo "Found baseline images to update"
+          mkdir -p ChessScrambler.VisualTests/baseline-images
+          cp visual-test-screenshots/*.png ChessScrambler.VisualTests/baseline-images/ 2>/dev/null || echo "No PNG files found in visual-test-screenshots"
+          
+          # Check if any files were actually copied
+          if [ "$(ls -A ChessScrambler.VisualTests/baseline-images/ 2>/dev/null)" ]; then
+            git add ChessScrambler.VisualTests/baseline-images/
+            
+            # Create commit message file to avoid YAML parsing issues
+            echo "Update visual regression test baselines" > commit_msg.txt
+            echo "" >> commit_msg.txt
+            echo "- Updated baseline images for visual regression tests" >> commit_msg.txt
+            echo "- Generated on $(date -u)" >> commit_msg.txt
+            echo "- Workflow run: ${{ github.run_id }}" >> commit_msg.txt
+            echo "" >> commit_msg.txt
+            echo "This PR contains updated baseline images that should be reviewed and merged if the visual changes are intentional." >> commit_msg.txt
+            
+            git commit -F commit_msg.txt
+            rm commit_msg.txt
+            
+            # Push branch
+            git push -u origin "$BRANCH_NAME"
+            
+            # Create PR body file to avoid YAML parsing issues
+            echo "## 🎨 Visual Baseline Update" > pr_body.txt
+            echo "" >> pr_body.txt
+            echo "This PR updates the baseline images for visual regression testing." >> pr_body.txt
+            echo "" >> pr_body.txt
+            echo "**Changes:**" >> pr_body.txt
+            echo "- Updated baseline images in \`ChessScrambler.VisualTests/baseline-images/\`" >> pr_body.txt
+            echo "- Generated from workflow run: ${{ github.run_id }}" >> pr_body.txt
+            echo "- Generated on: $(date -u)" >> pr_body.txt
+            echo "" >> pr_body.txt
+            echo "**Review Required:**" >> pr_body.txt
+            echo "Please review the updated baseline images to ensure they represent the correct expected visual state of the application." >> pr_body.txt
+            echo "" >> pr_body.txt
+            echo "**Next Steps:**" >> pr_body.txt
+            echo "1. Review the baseline images" >> pr_body.txt
+            echo "2. If correct, approve and merge this PR" >> pr_body.txt
+            echo "3. The main PR can then be updated to use the new baselines" >> pr_body.txt
+            
+            gh pr create --title "Update Visual Regression Test Baselines" --body-file pr_body.txt --base main
+            rm pr_body.txt
+          else
+            echo "No valid baseline images were copied"
+            exit 1
+          fi
+        else
+          echo "No baseline images found to update"
+          exit 1
+        fi
