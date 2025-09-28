@@ -10,6 +10,19 @@ on:
       - '**/ChessScrambler.VisualTests/**'
       - '**/Assets/**'
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'update-baselines'
+        type: choice
+        options:
+          - update-baselines
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
 
 jobs:
   visual-tests-pr:
@@ -44,8 +57,18 @@ jobs:
         export DISPLAY=:99
         Xvfb :99 -screen 0 1920x1080x24 &
         sleep 5
+        
+        # Create directories for test outputs
+        mkdir -p TestResults
+        mkdir -p visual-test-screenshots
+        
+        # Run tests and capture exit code
+        set +e
         dotnet test ChessScrambler.VisualTests/ChessScrambler.VisualTests.csproj --configuration Release --logger "console;verbosity=detailed" --results-directory TestResults
-        echo "test-exit-code=$?" >> $GITHUB_OUTPUT
+        TEST_EXIT_CODE=$?
+        set -e
+        
+        echo "test-exit-code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
         
     - name: Generate test report
       if: always()
@@ -87,6 +110,7 @@ jobs:
           visual-test-screenshots/
           test-report.md
         retention-days: 30
+        if-no-files-found: warn
         
     - name: Comment on PR
       if: always() && github.event_name == 'pull_request'
@@ -133,7 +157,6 @@ jobs:
       run: |
         if [ "${{ steps.visual-tests.outputs.test-exit-code }}" = "0" ]; then
           echo "Visual tests passed ✅"
-          exit 0
         else
           echo "Visual tests failed ❌"
           exit 1
@@ -171,9 +194,17 @@ jobs:
         export DISPLAY=:99
         Xvfb :99 -screen 0 1920x1080x24 &
         sleep 5
+        
+        # Create directories for test outputs
+        mkdir -p TestResults
+        mkdir -p visual-test-screenshots
+        
+        # Run tests to generate baseline images
         dotnet test ChessScrambler.VisualTests/ChessScrambler.VisualTests.csproj --configuration Release --logger "console;verbosity=minimal"
         
     - name: Create baseline update PR
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Configure git
         git config --local user.email "action@github.com"
@@ -183,42 +214,56 @@ jobs:
         BRANCH_NAME="update-visual-baselines-$(date +%Y%m%d-%H%M%S)"
         git checkout -b "$BRANCH_NAME"
         
-        # Add baseline images
-        if [ -d "visual-test-screenshots" ] && [ "$(ls -A visual-test-screenshots)" ]; then
+        # Check if baseline images exist and add them
+        if [ -d "visual-test-screenshots" ] && [ "$(ls -A visual-test-screenshots 2>/dev/null)" ]; then
+          echo "Found baseline images to update"
           mkdir -p ChessScrambler.VisualTests/baseline-images
-          cp visual-test-screenshots/*.png ChessScrambler.VisualTests/baseline-images/
-          git add ChessScrambler.VisualTests/baseline-images/
+          cp visual-test-screenshots/*.png ChessScrambler.VisualTests/baseline-images/ 2>/dev/null || echo "No PNG files found in visual-test-screenshots"
           
-          git commit -m "Update visual regression test baselines
-
-- Updated baseline images for visual regression tests
-- Generated on $(date -u)
-- Workflow run: ${{ github.run_id }}
-
-This PR contains updated baseline images that should be reviewed and merged if the visual changes are intentional."
-          
-          # Push branch
-          git push -u origin "$BRANCH_NAME"
-          
-          # Create PR
-          gh pr create --title "Update Visual Regression Test Baselines" \
-            --body "## 🎨 Visual Baseline Update
-
-This PR updates the baseline images for visual regression testing.
-
-**Changes:**
-- Updated baseline images in \`ChessScrambler.VisualTests/baseline-images/\`
-- Generated from workflow run: ${{ github.run_id }}
-- Generated on: $(date -u)
-
-**Review Required:**
-Please review the updated baseline images to ensure they represent the correct expected visual state of the application.
-
-**Next Steps:**
-1. Review the baseline images
-2. If correct, approve and merge this PR
-3. The main PR can then be updated to use the new baselines" \
-            --base main
+          # Check if any files were actually copied
+          if [ "$(ls -A ChessScrambler.VisualTests/baseline-images/ 2>/dev/null)" ]; then
+            git add ChessScrambler.VisualTests/baseline-images/
+            
+            # Create commit message file to avoid YAML parsing issues
+            echo "Update visual regression test baselines" > commit_msg.txt
+            echo "" >> commit_msg.txt
+            echo "- Updated baseline images for visual regression tests" >> commit_msg.txt
+            echo "- Generated on $(date -u)" >> commit_msg.txt
+            echo "- Workflow run: ${{ github.run_id }}" >> commit_msg.txt
+            echo "" >> commit_msg.txt
+            echo "This PR contains updated baseline images that should be reviewed and merged if the visual changes are intentional." >> commit_msg.txt
+            
+            git commit -F commit_msg.txt
+            rm commit_msg.txt
+            
+            # Push branch
+            git push -u origin "$BRANCH_NAME"
+            
+            # Create PR body file to avoid YAML parsing issues
+            echo "## 🎨 Visual Baseline Update" > pr_body.txt
+            echo "" >> pr_body.txt
+            echo "This PR updates the baseline images for visual regression testing." >> pr_body.txt
+            echo "" >> pr_body.txt
+            echo "**Changes:**" >> pr_body.txt
+            echo "- Updated baseline images in \`ChessScrambler.VisualTests/baseline-images/\`" >> pr_body.txt
+            echo "- Generated from workflow run: ${{ github.run_id }}" >> pr_body.txt
+            echo "- Generated on: $(date -u)" >> pr_body.txt
+            echo "" >> pr_body.txt
+            echo "**Review Required:**" >> pr_body.txt
+            echo "Please review the updated baseline images to ensure they represent the correct expected visual state of the application." >> pr_body.txt
+            echo "" >> pr_body.txt
+            echo "**Next Steps:**" >> pr_body.txt
+            echo "1. Review the baseline images" >> pr_body.txt
+            echo "2. If correct, approve and merge this PR" >> pr_body.txt
+            echo "3. The main PR can then be updated to use the new baselines" >> pr_body.txt
+            
+            gh pr create --title "Update Visual Regression Test Baselines" --body-file pr_body.txt --base main
+            rm pr_body.txt
+          else
+            echo "No valid baseline images were copied"
+            exit 1
+          fi
         else
           echo "No baseline images found to update"
+          exit 1
         fi
