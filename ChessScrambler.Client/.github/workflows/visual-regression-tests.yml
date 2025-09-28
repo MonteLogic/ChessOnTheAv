@@ -1,0 +1,116 @@
+name: Visual Regression Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  visual-tests-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Install Linux dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb libx11-6 libx11-xcb1 libxcb1 libxss1 libgconf-2-4 libxrandr2 libasound2 libpangocairo-1.0-0 libatk1.0-0 libcairo-gobject2 libgtk-3-0 libgdk-pixbuf2.0-0
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build application
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Run visual regression tests
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1920x1080x24 &
+        sleep 5
+        dotnet test ChessScrambler.VisualTests/ChessScrambler.VisualTests.csproj --configuration Release --logger "console;verbosity=detailed" --collect:"XPlat Code Coverage"
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: visual-test-results-linux
+        path: |
+          TestResults/
+          visual-test-screenshots/
+        retention-days: 30
+
+  visual-tests-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build application
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Run visual regression tests
+      run: dotnet test ChessScrambler.VisualTests/ChessScrambler.VisualTests.csproj --configuration Release --logger "console;verbosity=detailed" --collect:"XPlat Code Coverage"
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: visual-test-results-windows
+        path: |
+          TestResults/
+          visual-test-screenshots/
+        retention-days: 30
+
+  visual-tests-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Install macOS dependencies
+      run: |
+        brew install --cask xquartz
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build application
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Run visual regression tests
+      run: |
+        dotnet test ChessScrambler.VisualTests/ChessScrambler.VisualTests.csproj --configuration Release --logger "console;verbosity=detailed" --collect:"XPlat Code Coverage"
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: visual-test-results-macos
+        path: |
+          TestResults/
+          visual-test-screenshots/
+        retention-days: 30

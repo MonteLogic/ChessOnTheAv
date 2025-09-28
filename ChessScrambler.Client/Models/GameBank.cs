@@ -9,8 +9,10 @@ namespace ChessScrambler.Client.Models
     public class GameBank
     {
         private static readonly List<ImportedGame> _importedGames = new List<ImportedGame>();
-        private static readonly Random _random = new Random(Guid.NewGuid().GetHashCode());
         private static readonly object _lock = new object();
+        
+        // The default game (third game from sample_games.pgn)
+        private static ImportedGame? _defaultGame = null;
 
         public static List<ImportedGame> ImportedGames 
         { 
@@ -50,6 +52,16 @@ namespace ChessScrambler.Client.Models
             {
                 _importedGames.AddRange(games);
                 
+                // Set the third game as the default if we have at least 3 games
+                if (_importedGames.Count >= 3 && _defaultGame == null)
+                {
+                    _defaultGame = _importedGames[2]; // Third game (index 2)
+                    if (Program.EnableGameLogging)
+                    {
+                        Console.WriteLine($"[GAME] Set default game to: {_defaultGame.GetDisplayName()}");
+                    }
+                }
+                
                 if (Program.EnableGameLogging)
                 {
                     Console.WriteLine($"[GAME] Total imported games after import: {_importedGames.Count}");
@@ -69,38 +81,34 @@ namespace ChessScrambler.Client.Models
             }
         }
 
-        public static ImportedGame GetRandomMiddlegamePosition()
+        public static ImportedGame GetDefaultMiddlegamePosition()
         {
             lock (_lock)
             {
                 if (Program.EnableGameLogging)
                 {
-                    Console.WriteLine($"[GAME] GetRandomMiddlegamePosition called, total games: {_importedGames.Count}");
+                    Console.WriteLine($"[GAME] GetDefaultMiddlegamePosition called");
                 }
                 
-                if (_importedGames.Count == 0)
+                if (_defaultGame == null)
                 {
                     if (Program.EnableGameLogging)
                     {
-                        Console.WriteLine("[GAME] No games imported, throwing exception");
+                        Console.WriteLine("[GAME] No default game set, throwing exception");
                     }
-                    throw new InvalidOperationException("No games imported. Please import games first.");
-
+                    throw new InvalidOperationException("No default game available. Please import games first.");
                 }
 
-                var randomIndex = _random.Next(_importedGames.Count);
-                var game = _importedGames[randomIndex];
-                
                 if (Program.EnableGameLogging)
                 {
-                    Console.WriteLine($"[GAME] Selected game at index {randomIndex}: {game.GetDisplayName()}");
-                    Console.WriteLine($"[GAME] Selected game has {game.Moves.Count} moves");
+                    Console.WriteLine($"[GAME] Using default game: {_defaultGame.GetDisplayName()}");
+                    Console.WriteLine($"[GAME] Default game has {_defaultGame.Moves.Count} moves");
                 }
                 
                 // Initialize the middlegame positions for this game if not already done
-                game.InitializeMiddlegamePositions();
+                _defaultGame.InitializeMiddlegamePositions();
                 
-                return game;
+                return _defaultGame;
             }
         }
 
@@ -140,6 +148,7 @@ namespace ChessScrambler.Client.Models
                     Console.WriteLine($"[GAME] ClearGames called, clearing {_importedGames.Count} games");
                 }
                 _importedGames.Clear();
+                _defaultGame = null;
             }
         }
 
@@ -416,7 +425,6 @@ namespace ChessScrambler.Client.Models
         
         // Pre-computed middlegame positions for this game
         public List<string> MiddlegamePositions { get; set; } = new List<string>();
-        private static readonly Random _random = new Random(Guid.NewGuid().GetHashCode());
 
         public ImportedGame()
         {
@@ -434,15 +442,15 @@ namespace ChessScrambler.Client.Models
                 Console.WriteLine($"[GAME] Initializing middlegame positions for game: {GetDisplayName()}");
             }
 
-            // Pre-compute 3-5 good middlegame positions for this game
+            // Generate 3-5 specific middlegame positions based on the actual game moves
             var positionsToGenerate = Math.Min(5, Math.Max(3, Moves.Count / 10));
             
             for (int i = 0; i < positionsToGenerate; i++)
             {
                 try
                 {
-                    // Generate a random middlegame position
-                    var fen = GenerateRandomMiddlegamePosition();
+                    // Generate a middlegame position based on the actual game moves
+                    var fen = GenerateMiddlegamePositionFromGame(i);
                     MiddlegamePositions.Add(fen);
                     
                     if (Program.EnableGameLogging)
@@ -465,24 +473,41 @@ namespace ChessScrambler.Client.Models
             }
         }
 
-        private string GenerateRandomMiddlegamePosition()
+        private string GenerateMiddlegamePositionFromGame(int positionIndex)
         {
-            // Create a chess game and make some random moves to reach a middlegame position
+            // Create a chess game and make moves from the actual game to reach a middlegame position
             var chessGame = new ChessDotNet.ChessGame();
             
-            // Make 15-25 random moves to reach middlegame
-            var moveCount = _random.Next(15, 26);
+            // Calculate how many moves to make to reach a middlegame position
+            // Use different move counts for different positions
+            var moveCounts = new int[] { 8, 12, 16, 20, 24 };
+            var moveCount = moveCounts[Math.Min(positionIndex, moveCounts.Length - 1)];
             
-            for (int i = 0; i < moveCount; i++)
+            // Make moves from the actual game
+            for (int i = 0; i < Math.Min(moveCount, Moves.Count); i++)
             {
                 try
                 {
+                    var move = Moves[i];
                     var validMoves = chessGame.GetValidMoves(chessGame.WhoseTurn).ToList();
-                    if (validMoves.Count == 0)
-                        break;
-                        
-                    var randomMove = validMoves[_random.Next(validMoves.Count)];
-                    chessGame.MakeMove(randomMove, true);
+                    
+                    // Try to find a matching move
+                    var matchingMove = validMoves.FirstOrDefault(m => 
+                        m.ToString().Contains(move) || move.Contains(m.ToString()));
+                    
+                    if (matchingMove != null)
+                    {
+                        chessGame.MakeMove(matchingMove, true);
+                    }
+                    else
+                    {
+                        // If no exact match, make a random valid move
+                        if (validMoves.Count > 0)
+                        {
+                            var randomMove = validMoves[0]; // Use first move as fallback
+                            chessGame.MakeMove(randomMove, true);
+                        }
+                    }
                 }
                 catch
                 {
@@ -499,7 +524,7 @@ namespace ChessScrambler.Client.Models
             return $"{WhitePlayer} vs {BlackPlayer} ({Date})";
         }
 
-        public string GetMiddlegamePositionFen(int moveNumber = -1)
+        public string GetMiddlegamePositionFen(int positionIndex = 0)
         {
             if (Program.EnableGameLogging)
             {
@@ -518,16 +543,16 @@ namespace ChessScrambler.Client.Models
                 return "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
             }
 
-            // Select a random middlegame position
-            var selectedPosition = MiddlegamePositions[_random.Next(MiddlegamePositions.Count)];
+            // Select a specific middlegame position (not random)
+            var selectedIndex = positionIndex % MiddlegamePositions.Count;
+            var selectedPosition = MiddlegamePositions[selectedIndex];
             
             if (Program.EnableGameLogging)
             {
-                Console.WriteLine($"[GAME] Selected random middlegame position: {selectedPosition}");
+                Console.WriteLine($"[GAME] Selected middlegame position {selectedIndex}: {selectedPosition}");
             }
             
             return selectedPosition;
         }
-
     }
 }

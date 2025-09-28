@@ -582,7 +582,7 @@ public class ChessBoardViewModel : INotifyPropertyChanged
                     Console.WriteLine("[GAME] Loading from imported games");
                 }
 
-                var importedGame = GameBank.GetRandomMiddlegamePosition();
+                var importedGame = GameBank.GetDefaultMiddlegamePosition();
                 if (Program.EnableGameLogging)
                 {
                     Console.WriteLine($"[GAME] Selected imported game: {importedGame.GetDisplayName()}");
