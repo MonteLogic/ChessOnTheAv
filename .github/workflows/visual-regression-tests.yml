@@ -2,7 +2,7 @@ name: Visual Regression Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, MonteLogic/issue12 ]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -67,7 +67,7 @@ jobs:
       run: dotnet build --configuration Release --no-restore
       
     - name: Run visual regression tests
-      run: dotnet test ChessScrambler.VisualTests/ChessScrambler.VisualTests.csproj --configuration Release --logger "console;verbosity=detailed" --collect:"XPlat Code Coverage"
+      run: dotnet test ChessScrambler.Client/ChessScrambler.VisualTests/ChessScrambler.VisualTests.csproj --configuration Release --logger "console;verbosity=detailed" --collect:"XPlat Code Coverage"
         
     - name: Upload test results
       uses: actions/upload-artifact@v4
