@@ -27,11 +27,21 @@ jobs:
       with:
         dotnet-version: '8.0.x'
         
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1.3
+        
     - name: Restore dependencies
-      run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
+      run: dotnet restore $env:Solution_Name
       
     - name: Build application
-      run: msbuild $env:Solution_Name /t:Build /p:Configuration=$env:Configuration
+      run: dotnet build $env:Solution_Name --configuration $env:Configuration --no-restore
+      
+    # Alternative MSBuild approach (uncomment if needed)
+    # - name: Restore dependencies (MSBuild)
+    #   run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
+    #   
+    # - name: Build application (MSBuild)
+    #   run: msbuild $env:Solution_Name /t:Build /p:Configuration=$env:Configuration
       
     - name: Run unit tests
       run: dotnet test $env:Test_Project_Path --configuration $env:Configuration --no-build --logger "console;verbosity=normal"
