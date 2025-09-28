@@ -29,4 +29,13 @@
     <AvaloniaResource Include="Assets\ChessPieces\*.png" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="ChessScrambler.Tests\**" />
+    <Compile Remove="ChessScrambler.VisualTests\**" />
+    <EmbeddedResource Remove="ChessScrambler.Tests\**" />
+    <EmbeddedResource Remove="ChessScrambler.VisualTests\**" />
+    <None Remove="ChessScrambler.Tests\**" />
+    <None Remove="ChessScrambler.VisualTests\**" />
+  </ItemGroup>
+
 </Project>
